@@ -1,9 +1,18 @@
 const express = require("express");
 const pool = require("./config/db");
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
+
+const imageRoutes = require("./routes/imageRoutes");
+
 const app = express();
 
 app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use("/api/images", imageRoutes);
 
 app.get("/", async (req, res) => {
   try {
