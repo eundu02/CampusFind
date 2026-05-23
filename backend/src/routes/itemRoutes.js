@@ -279,6 +279,137 @@ router.get("/", async (req, res) => {
 
 /**
  * @swagger
+ * /api/items/nearby:
+ *   get:
+ *     summary: 위치 기반 반경 검색
+ *     description: 기준 좌표와 반경을 받아 반경 안의 게시글을 거리순으로 조회합니다.
+ *     tags: [Items]
+ *     parameters:
+ *       - in: query
+ *         name: latitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *           example: 35.8622
+ *         description: 기준 위도
+ *       - in: query
+ *         name: longitude
+ *         required: true
+ *         schema:
+ *           type: number
+ *           example: 129.1951
+ *         description: 기준 경도
+ *       - in: query
+ *         name: radius
+ *         required: true
+ *         schema:
+ *           type: number
+ *           example: 500
+ *         description: 검색 반경(미터)
+ *     responses:
+ *       200:
+ *         description: 위치 기반 반경 검색 성공
+ *       400:
+ *         description: 필수 query 값 누락 또는 잘못된 값
+ *       500:
+ *         description: 위치 기반 반경 검색 실패
+ */
+router.get("/nearby", async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.query;
+
+    if (
+      latitude === undefined ||
+      longitude === undefined ||
+      radius === undefined
+    ) {
+      return res.status(400).json({
+        message: "latitude, longitude, radius query 값이 필요합니다.",
+      });
+    }
+
+    const latitudeNumber = Number(latitude);
+    const longitudeNumber = Number(longitude);
+    const radiusNumber = Number(radius);
+
+    if (
+      Number.isNaN(latitudeNumber) ||
+      Number.isNaN(longitudeNumber) ||
+      Number.isNaN(radiusNumber)
+    ) {
+      return res.status(400).json({
+        message: "latitude, longitude, radius는 숫자여야 합니다.",
+      });
+    }
+
+    if (
+      latitudeNumber < -90 ||
+      latitudeNumber > 90 ||
+      longitudeNumber < -180 ||
+      longitudeNumber > 180 ||
+      radiusNumber <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          "latitude는 -90~90, longitude는 -180~180, radius는 0보다 큰 값이어야 합니다.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+      WITH search_point AS (
+        SELECT ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography AS point
+      )
+      SELECT
+        i.id,
+        i.type,
+        i.title,
+        i.description,
+        i.location_detail,
+        i.reward_amount,
+        i.status,
+        i.created_at,
+        i.updated_at,
+        u.nickname AS author_nickname,
+        c.name AS category_name,
+        b.name AS building_name,
+        ST_Y(i.location::geometry) AS latitude,
+        ST_X(i.location::geometry) AS longitude,
+        ST_Distance(i.location, sp.point) AS distance_meter,
+        (
+          SELECT ii.storage_url
+          FROM item_images ii
+          WHERE ii.item_id = i.id
+          ORDER BY ii.order_index ASC
+          LIMIT 1
+        ) AS thumbnail_url
+      FROM items i
+      JOIN users u ON i.author_id = u.id
+      JOIN categories c ON i.category_id = c.id
+      JOIN buildings b ON i.building_id = b.id
+      CROSS JOIN search_point sp
+      WHERE ST_DWithin(i.location, sp.point, $3)
+      ORDER BY distance_meter ASC
+      `,
+      [latitudeNumber, longitudeNumber, radiusNumber]
+    );
+
+    res.status(200).json({
+      message: "위치 기반 반경 검색 성공",
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error("위치 기반 반경 검색 실패:", error);
+
+    res.status(500).json({
+      message: "위치 기반 반경 검색 실패",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/items/{id}:
  *   get:
  *     summary: 게시글 상세 조회
