@@ -6,6 +6,7 @@ const swaggerSpec = require("./config/swagger");
 
 const imageRoutes = require("./routes/imageRoutes");
 const itemRoutes = require("./routes/itemRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 const buildingRoutes = require("./routes/buildingRoutes");
 
 const app = express();
@@ -16,6 +17,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/images", imageRoutes);
 app.use("/api/items", itemRoutes);
+app.use("/api/rooms", messageRoutes);
 app.use("/api/buildings", buildingRoutes);
 
 app.get("/", async (req, res) => {
