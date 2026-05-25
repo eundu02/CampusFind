@@ -8,7 +8,7 @@ const pool = new Pool({
   },
 });
 
-pool.connect()
+pool.query("SELECT NOW()")
   .then(() => {
     console.log("PostgreSQL 연결 성공");
   })
