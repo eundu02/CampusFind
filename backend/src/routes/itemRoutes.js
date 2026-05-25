@@ -411,6 +411,366 @@ router.get("/nearby", async (req, res) => {
 /**
  * @swagger
  * /api/items/{id}:
+ *   patch:
+ *     summary: 게시글 수정
+ *     description: 요청 body의 author_id로 작성자 본인 여부를 확인한 뒤 게시글 정보를 수정합니다. 좌표 수정 시 latitude와 longitude를 함께 전달해야 합니다.
+ *     tags: [Items]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 게시글 ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - author_id
+ *             properties:
+ *               author_id:
+ *                 type: integer
+ *                 example: 1
+ *               category_id:
+ *                 type: integer
+ *                 example: 1
+ *               building_id:
+ *                 type: integer
+ *                 example: 1
+ *               type:
+ *                 type: string
+ *                 enum: [LOST, FOUND]
+ *                 example: LOST
+ *               title:
+ *                 type: string
+ *                 example: 검은색 지갑을 잃어버렸습니다
+ *               description:
+ *                 type: string
+ *                 example: 학생회관 근처에서 잃어버렸습니다.
+ *               location_detail:
+ *                 type: string
+ *                 example: 학생회관 1층 로비
+ *               latitude:
+ *                 type: number
+ *                 example: 35.8622
+ *               longitude:
+ *                 type: number
+ *                 example: 129.1951
+ *               reward_amount:
+ *                 type: integer
+ *                 example: 10000
+ *               status:
+ *                 type: string
+ *                 enum: [OPEN, MATCHED, RETURNED]
+ *                 example: OPEN
+ *     responses:
+ *       200:
+ *         description: 게시글 수정 성공
+ *       400:
+ *         description: 잘못된 요청 또는 수정 값 누락
+ *       403:
+ *         description: 작성자 본인이 아님
+ *       404:
+ *         description: 게시글을 찾을 수 없음
+ *       500:
+ *         description: 게시글 수정 실패
+ */
+router.patch("/:id", async (req, res) => {
+  try {
+    const itemId = Number(req.params.id);
+    const {
+      author_id,
+      category_id,
+      building_id,
+      type,
+      title,
+      description,
+      location_detail,
+      latitude,
+      longitude,
+      reward_amount,
+      status,
+    } = req.body;
+
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      return res.status(400).json({
+        message: "id는 1 이상의 정수여야 합니다.",
+      });
+    }
+
+    const authorId = Number(author_id);
+
+    if (!Number.isInteger(authorId) || authorId <= 0) {
+      return res.status(400).json({
+        message: "author_id는 1 이상의 정수여야 합니다.",
+      });
+    }
+
+    if (
+      (latitude === undefined && longitude !== undefined) ||
+      (latitude !== undefined && longitude === undefined)
+    ) {
+      return res.status(400).json({
+        message: "latitude와 longitude는 함께 입력해야 합니다.",
+      });
+    }
+
+    const allowedTypes = ["LOST", "FOUND"];
+    const allowedStatuses = ["OPEN", "MATCHED", "RETURNED"];
+
+    if (type !== undefined && !allowedTypes.includes(type)) {
+      return res.status(400).json({
+        message: "type은 LOST 또는 FOUND만 가능합니다.",
+      });
+    }
+
+    if (status !== undefined && !allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: "status는 OPEN, MATCHED, RETURNED만 가능합니다.",
+      });
+    }
+
+    if (latitude !== undefined && longitude !== undefined) {
+      const latitudeNumber = Number(latitude);
+      const longitudeNumber = Number(longitude);
+
+      if (
+        Number.isNaN(latitudeNumber) ||
+        Number.isNaN(longitudeNumber) ||
+        latitudeNumber < -90 ||
+        latitudeNumber > 90 ||
+        longitudeNumber < -180 ||
+        longitudeNumber > 180
+      ) {
+        return res.status(400).json({
+          message: "latitude 또는 longitude 값이 올바르지 않습니다.",
+        });
+      }
+    }
+
+    const itemResult = await pool.query(
+      `
+      SELECT id, author_id
+      FROM items
+      WHERE id = $1
+      `,
+      [itemId]
+    );
+
+    if (itemResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "게시글을 찾을 수 없습니다.",
+      });
+    }
+
+    if (Number(itemResult.rows[0].author_id) !== authorId) {
+      return res.status(403).json({
+        message: "게시글 작성자만 수정할 수 있습니다.",
+      });
+    }
+
+    const setClauses = [];
+    const values = [];
+
+    const addField = (column, value) => {
+      values.push(value);
+      setClauses.push(`${column} = $${values.length}`);
+    };
+
+    if (category_id !== undefined) addField("category_id", category_id);
+    if (building_id !== undefined) addField("building_id", building_id);
+    if (type !== undefined) addField("type", type);
+    if (title !== undefined) addField("title", title);
+    if (description !== undefined) addField("description", description);
+    if (location_detail !== undefined) {
+      addField("location_detail", location_detail);
+    }
+    if (reward_amount !== undefined) addField("reward_amount", reward_amount);
+    if (status !== undefined) addField("status", status);
+
+    if (latitude !== undefined && longitude !== undefined) {
+      values.push(`POINT(${longitude} ${latitude})`);
+      setClauses.push(`location = ST_GeogFromText($${values.length})`);
+    }
+
+    if (setClauses.length === 0) {
+      return res.status(400).json({
+        message: "수정할 값을 1개 이상 입력해야 합니다.",
+      });
+    }
+
+    values.push(itemId);
+
+    const updateResult = await pool.query(
+      `
+      UPDATE items
+      SET
+        ${setClauses.join(",\n        ")},
+        updated_at = NOW()
+      WHERE id = $${values.length}
+      RETURNING
+        id,
+        author_id,
+        category_id,
+        building_id,
+        type,
+        title,
+        description,
+        location_detail,
+        ST_Y(location::geometry) AS latitude,
+        ST_X(location::geometry) AS longitude,
+        reward_amount,
+        status,
+        created_at,
+        updated_at
+      `,
+      values
+    );
+
+    res.status(200).json({
+      message: "게시글 수정 성공",
+      item: updateResult.rows[0],
+    });
+  } catch (error) {
+    console.error("게시글 수정 실패:", error);
+
+    res.status(500).json({
+      message: "게시글 수정 실패",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/items/{id}:
+ *   delete:
+ *     summary: 게시글 삭제
+ *     description: 요청 body의 author_id로 작성자 본인 여부를 확인한 뒤 게시글과 게시글 이미지 정보를 삭제합니다.
+ *     tags: [Items]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: 게시글 ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - author_id
+ *             properties:
+ *               author_id:
+ *                 type: integer
+ *                 example: 1
+ *     responses:
+ *       200:
+ *         description: 게시글 삭제 성공
+ *       400:
+ *         description: 잘못된 요청
+ *       403:
+ *         description: 작성자 본인이 아님
+ *       404:
+ *         description: 게시글을 찾을 수 없음
+ *       409:
+ *         description: 연결된 데이터가 있어 삭제할 수 없음
+ *       500:
+ *         description: 게시글 삭제 실패
+ */
+router.delete("/:id", async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const itemId = Number(req.params.id);
+    const authorId = Number(req.body.author_id);
+
+    if (!Number.isInteger(itemId) || itemId <= 0) {
+      return res.status(400).json({
+        message: "id는 1 이상의 정수여야 합니다.",
+      });
+    }
+
+    if (!Number.isInteger(authorId) || authorId <= 0) {
+      return res.status(400).json({
+        message: "author_id는 1 이상의 정수여야 합니다.",
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const itemResult = await client.query(
+      `
+      SELECT id, author_id
+      FROM items
+      WHERE id = $1
+      `,
+      [itemId]
+    );
+
+    if (itemResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "게시글을 찾을 수 없습니다.",
+      });
+    }
+
+    if (Number(itemResult.rows[0].author_id) !== authorId) {
+      await client.query("ROLLBACK");
+
+      return res.status(403).json({
+        message: "게시글 작성자만 삭제할 수 있습니다.",
+      });
+    }
+
+    await client.query("DELETE FROM item_images WHERE item_id = $1", [itemId]);
+
+    const deleteResult = await client.query(
+      `
+      DELETE FROM items
+      WHERE id = $1
+      RETURNING id
+      `,
+      [itemId]
+    );
+
+    await client.query("COMMIT");
+
+    res.status(200).json({
+      message: "게시글 삭제 성공",
+      deleted_item_id: deleteResult.rows[0].id,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    if (error.code === "23503") {
+      return res.status(409).json({
+        message: "연결된 데이터가 있어 게시글을 삭제할 수 없습니다.",
+        error: error.message,
+      });
+    }
+
+    console.error("게시글 삭제 실패:", error);
+
+    res.status(500).json({
+      message: "게시글 삭제 실패",
+      error: error.message,
+    });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * @swagger
+ * /api/items/{id}:
  *   get:
  *     summary: 게시글 상세 조회
  *     description: 게시글 상세 정보와 이미지 목록을 조회합니다.
