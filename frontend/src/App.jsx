@@ -119,7 +119,40 @@ const emptyDraft = {
   status: "idle",
 };
 
+const mapImageSize = {
+  width: 1340,
+  height: 1174,
+};
+
+const campusBounds = {
+  north: 35.86645,
+  south: 35.85805,
+  west: 129.19045,
+  east: 129.19815,
+};
+
+const buildingSearchSpots = [
+  { id: 1, name: "학생회관", lat: 35.8620820, lng: 129.1961830 },
+  { id: 3, name: "자연과학관", lat: 35.8631560, lng: 129.1965830 },
+  { id: 4, name: "문무관", lat: 35.8625480, lng: 129.1972160 },
+  { id: 5, name: "에너지공학관", lat: 35.8634350, lng: 129.1954990 },
+  { id: 6, name: "100주년기념관", lat: 35.8643850, lng: 129.1945730 },
+  { id: 7, name: "중앙도서관", lat: 35.8626220, lng: 129.1944640 },
+  { id: 8, name: "원효관", lat: 35.8618370, lng: 129.1935530 },
+  { id: 9, name: "진흥관", lat: 35.8632470, lng: 129.1932580 },
+  { id: 10, name: "평생교육원", lat: 35.8625830, lng: 129.1918100 },
+  { id: 11, name: "금장생활관 반야동", lat: 35.8636610, lng: 129.1920340 },
+  { id: 12, name: "조형관", lat: 35.8631040, lng: 129.1914490 },
+  { id: 13, name: "금장생활관 미륵동", lat: 35.8638620, lng: 129.1916020 },
+  { id: 14, name: "금장생활관 보현동", lat: 35.8639100, lng: 129.1913520 },
+  { id: 15, name: "금장생활관 금강동", lat: 35.8636720, lng: 129.1909360 },
+  { id: 16, name: "대운동장", lat: 35.8606090, lng: 129.1945690 },
+];
+
 function App() {
+  const [authMode, setAuthMode] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
   const [activeTab, setActiveTab] = useState("list");
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
@@ -279,127 +312,499 @@ function App() {
     setActiveTab("list");
   }
 
+  function completeAuth(user = {}) {
+    setAuthUser({
+      email: user.email ?? verifiedEmail,
+      name: user.name ?? profile.nickname,
+    });
+
+    if (user.name) {
+      setProfile((prev) => ({ ...prev, nickname: user.name }));
+    }
+
+    setAuthMode(null);
+  }
+
+  function openRegister() {
+    setVerifiedEmail("");
+    setAuthMode("register-email");
+  }
+
+  function logout() {
+    setAuthUser(null);
+    setActiveTab("profile");
+  }
+
   return (
     <div className="app-shell">
-      <main className="phone-frame">
-        <section className="screen">
-          <AppHeader
-            stats={stats}
-            activeTab={activeTab}
-            quickFilter={quickFilter}
-            hasQuery={Boolean(query)}
-            onQuickFilterChange={(filter) => setQuickFilter((prev) => (prev === filter ? "all" : filter))}
-            onSearch={() => {
-              setActiveTab("list");
-              setIsSearchOpen((prev) => !prev);
+      <main className={`phone-frame ${authMode ? "auth-frame" : ""}`}>
+        {authMode ? (
+          <AuthScreen
+            mode={authMode}
+            verifiedEmail={verifiedEmail}
+            onClose={() => setAuthMode(null)}
+            onLogin={completeAuth}
+            onShowLogin={() => setAuthMode("login")}
+            onShowRegister={openRegister}
+            onEmailVerified={(email) => {
+              setVerifiedEmail(email);
+              setAuthMode("register-details");
             }}
-            onCreate={() => setIsCreateOpen(true)}
-            onProfile={() => setActiveTab("profile")}
-            onBack={handleBack}
+            onRegisterComplete={completeAuth}
           />
+        ) : (
+          <>
+            <section className="screen">
+              <AppHeader
+                stats={stats}
+                activeTab={activeTab}
+                quickFilter={quickFilter}
+                hasQuery={Boolean(query)}
+                onQuickFilterChange={(filter) => setQuickFilter((prev) => (prev === filter ? "all" : filter))}
+                onSearch={() => {
+                  setActiveTab("list");
+                  setIsSearchOpen((prev) => !prev);
+                }}
+                onCreate={() => setIsCreateOpen(true)}
+                onProfile={() => setActiveTab("profile")}
+                onBack={handleBack}
+              />
 
-          {activeTab === "list" && (
-            <ListView
-              key="list"
-              items={filteredItems}
-              query={query}
-              isSearchOpen={isSearchOpen}
-              selectedCategory={selectedCategory}
-              onQueryChange={setQuery}
-              onCategoryChange={setSelectedCategory}
-              onSelectItem={setSelectedItem}
-            />
-          )}
+              {activeTab === "list" && (
+                <ListView
+                  key="list"
+                  items={filteredItems}
+                  query={query}
+                  isSearchOpen={isSearchOpen}
+                  selectedCategory={selectedCategory}
+                  onQueryChange={setQuery}
+                  onCategoryChange={setSelectedCategory}
+                  onSelectItem={setSelectedItem}
+                />
+              )}
 
-          {activeTab === "map" && (
-            <MapView
-              key="map"
-              items={filteredItems}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              onSelectItem={setSelectedItem}
-            />
-          )}
+              {activeTab === "map" && (
+                <MapView
+                  key="map"
+                  items={filteredItems}
+                  selectedCategory={selectedCategory}
+                  onCategoryChange={setSelectedCategory}
+                  onSelectItem={setSelectedItem}
+                />
+              )}
 
-          {activeTab === "inbox" && (
-            <InboxView
-              messages={messages}
-              itemById={itemById}
-              onSelectMessage={(message) => {
-                setMessages((prev) =>
-                  prev.map((item) => (item.id === message.id ? { ...item, unread: false } : item)),
-                );
-                setSelectedMessage({ ...message, unread: false });
-              }}
-            />
-          )}
+              {activeTab === "inbox" && (
+                <InboxView
+                  messages={messages}
+                  itemById={itemById}
+                  onSelectMessage={(message) => {
+                    setMessages((prev) =>
+                      prev.map((item) => (item.id === message.id ? { ...item, unread: false } : item)),
+                    );
+                    setSelectedMessage({ ...message, unread: false });
+                  }}
+                />
+              )}
 
-          {activeTab === "profile" && (
-            <ProfileView
-              profile={profile}
-              foundCount={myFoundItems.length}
-              lostCount={myLostItems.length}
-              onAvatarChange={handleAvatarChange}
-              onNicknameChange={(nickname) => setProfile((prev) => ({ ...prev, nickname }))}
-              onNavigate={setActiveTab}
-            />
-          )}
+              {activeTab === "profile" && (
+                <ProfileView
+                  authUser={authUser}
+                  profile={profile}
+                  foundCount={myFoundItems.length}
+                  lostCount={myLostItems.length}
+                  onAvatarChange={handleAvatarChange}
+                  onNicknameChange={(nickname) => setProfile((prev) => ({ ...prev, nickname }))}
+                  onLogin={() => setAuthMode("login")}
+                  onRegister={openRegister}
+                  onLogout={logout}
+                  onNavigate={setActiveTab}
+                />
+              )}
 
-          {activeTab === "my-lost" && (
-            <MyItemsView
-              items={myLostItems}
-              emptyText="등록한 찾아주세요 게시글이 없습니다."
-              description="내가 잃어버려서 등록한 물건을 한 곳에서 확인합니다."
-              onSelectItem={setSelectedItem}
-            />
-          )}
+              {activeTab === "my-lost" && (
+                <MyItemsView
+                  items={myLostItems}
+                  emptyText="등록한 찾아주세요 게시글이 없습니다."
+                  description="내가 잃어버려 등록한 물건을 한곳에서 확인합니다."
+                  onSelectItem={setSelectedItem}
+                />
+              )}
 
-          {activeTab === "my-found" && (
-            <MyItemsView
-              items={myFoundItems}
-              emptyText="등록한 습득 게시글이 없습니다."
-              description="내가 주워서 등록한 물건과 보관 위치를 확인합니다."
-              onSelectItem={setSelectedItem}
-            />
-          )}
+              {activeTab === "my-found" && (
+                <MyItemsView
+                  items={myFoundItems}
+                  emptyText="등록한 습득 게시글이 없습니다."
+                  description="내가 주워서 등록한 물건과 보관 위치를 확인합니다."
+                  onSelectItem={setSelectedItem}
+                />
+              )}
 
-          {activeTab === "rules" && <RulesView />}
+              {activeTab === "rules" && <RulesView />}
 
-          {["list", "map", "inbox"].includes(activeTab) && (
-            <BottomNav activeTab={activeTab} unreadCount={unreadMessages} onChange={setActiveTab} />
-          )}
-        </section>
+              {["list", "map", "inbox"].includes(activeTab) && (
+                <BottomNav activeTab={activeTab} unreadCount={unreadMessages} onChange={setActiveTab} />
+              )}
+            </section>
 
-        {selectedItem && (
-          <DetailSheet
-            item={selectedItem}
-            sentCount={sentMessages.filter((message) => message.itemId === selectedItem.id).length}
-            onClose={() => setSelectedItem(null)}
-            onSendMessage={sendMessage}
-          />
-        )}
+            {selectedItem && (
+              <DetailSheet
+                item={selectedItem}
+                sentCount={sentMessages.filter((message) => message.itemId === selectedItem.id).length}
+                onClose={() => setSelectedItem(null)}
+                onSendMessage={sendMessage}
+              />
+            )}
 
-        {selectedMessage && (
-          <MessageSheet
-            message={selectedMessage}
-            item={itemById.get(selectedMessage.itemId)}
-            onClose={() => setSelectedMessage(null)}
-            onOpenItem={(item) => {
-              setSelectedMessage(null);
-              setSelectedItem(item);
-            }}
-          />
-        )}
+            {selectedMessage && (
+              <MessageSheet
+                message={selectedMessage}
+                item={itemById.get(selectedMessage.itemId)}
+                onClose={() => setSelectedMessage(null)}
+                onOpenItem={(item) => {
+                  setSelectedMessage(null);
+                  setSelectedItem(item);
+                }}
+              />
+            )}
 
-        {isCreateOpen && (
-          <CreateSheet
-            onClose={() => setIsCreateOpen(false)}
-            onSubmit={addItem}
-          />
+            {isCreateOpen && (
+              <CreateSheet
+                onClose={() => setIsCreateOpen(false)}
+                onSubmit={addItem}
+              />
+            )}
+          </>
         )}
       </main>
     </div>
   );
+}
+
+function AuthScreen({
+  mode,
+  verifiedEmail,
+  onClose,
+  onLogin,
+  onShowLogin,
+  onShowRegister,
+  onEmailVerified,
+  onRegisterComplete,
+}) {
+  if (mode === "register-email") {
+    return (
+      <EmailVerificationScreen
+        onClose={onClose}
+        onShowLogin={onShowLogin}
+        onEmailVerified={onEmailVerified}
+      />
+    );
+  }
+
+  if (mode === "register-details") {
+    return (
+      <RegisterDetailsScreen
+        email={verifiedEmail}
+        onClose={onClose}
+        onShowLogin={onShowLogin}
+        onRegisterComplete={onRegisterComplete}
+      />
+    );
+  }
+
+  return (
+    <LoginScreen
+      onClose={onClose}
+      onLogin={onLogin}
+      onShowRegister={onShowRegister}
+    />
+  );
+}
+
+function AuthShell({ title, children, footer, onClose, onSubmit }) {
+  return (
+    <section className="auth-screen">
+      <button className="icon-button auth-close" type="button" onClick={onClose} aria-label="닫기">
+        <CloseIcon />
+      </button>
+
+      <form className="auth-form" onSubmit={onSubmit}>
+        <div className="auth-head">
+          <p className="eyebrow">캠퍼스 분실물</p>
+          <h1>{title}</h1>
+        </div>
+        {children}
+      </form>
+
+      <div className="auth-footer">{footer}</div>
+    </section>
+  );
+}
+
+function LoginScreen({ onClose, onLogin, onShowRegister }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!isDonggukEmail(normalizedEmail)) {
+      setError("동국대 이메일(@dongguk.ac.kr)만 사용할 수 있습니다.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setError("비밀번호를 입력해 주세요.");
+      return;
+    }
+
+    setError("");
+    onLogin({ email: normalizedEmail });
+  }
+
+  return (
+    <AuthShell
+      title="로그인"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={(
+        <>
+          <span>계정이 없나요?</span>
+          <button className="inline-link" type="button" onClick={onShowRegister}>회원가입</button>
+        </>
+      )}
+    >
+      <div className="auth-fields">
+        <label className="field">
+          <span>이메일</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="student@dongguk.ac.kr"
+            autoComplete="email"
+          />
+        </label>
+        <label className="field">
+          <span>비밀번호</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="비밀번호"
+            autoComplete="current-password"
+          />
+        </label>
+        {error && <p className="field-error">{error}</p>}
+        <button className="primary-action auth-submit" type="submit">로그인</button>
+      </div>
+    </AuthShell>
+  );
+}
+
+function EmailVerificationScreen({ onClose, onShowLogin, onEmailVerified }) {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sentCode, setSentCode] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  function sendVerificationEmail(message = "인증번호를 발송했습니다.") {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!isDonggukEmail(normalizedEmail)) {
+      setError("@dongguk.ac.kr 이메일만 인증할 수 있습니다.");
+      setNotice("");
+      return;
+    }
+
+    const nextCode = String(Math.floor(100000 + Math.random() * 900000));
+    setSentCode(nextCode);
+    setCode("");
+    setError("");
+    setNotice(message);
+    window.alert(`인증번호: ${nextCode}`);
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!sentCode) {
+      sendVerificationEmail();
+      return;
+    }
+
+    if (code.trim() !== sentCode) {
+      setNotice("");
+      setError("인증번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setNotice("");
+    setError("");
+    onEmailVerified(normalizedEmail);
+  }
+
+  return (
+    <AuthShell
+      title="회원가입"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={(
+        <>
+          <span>이미 계정이 있나요?</span>
+          <button className="inline-link" type="button" onClick={onShowLogin}>로그인</button>
+        </>
+      )}
+    >
+      <div className="auth-fields">
+        <div className="auth-step">1 / 2 이메일 인증</div>
+        <label className="field">
+          <span>학교 이메일</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              setSentCode("");
+              setCode("");
+              setNotice("");
+              setError("");
+            }}
+            placeholder="student@dongguk.ac.kr"
+            autoComplete="email"
+          />
+        </label>
+        {sentCode && (
+          <label className="field">
+            <span>인증번호</span>
+            <input
+              inputMode="numeric"
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="6자리 인증번호"
+            />
+          </label>
+        )}
+        {notice && <p className="field-success">{notice}</p>}
+        {error && <p className="field-error">{error}</p>}
+        <button className="primary-action auth-submit" type="submit">
+          {sentCode ? "인증 확인 " : "인증번호 발송"} 
+        </button>
+        {sentCode && (
+          <button
+            className="secondary-action auth-submit"
+            type="button"
+            onClick={() => sendVerificationEmail("인증번호를 다시 발송했습니다.")}
+          >
+            인증번호 재발송
+          </button>
+        )}
+      </div>
+    </AuthShell>
+  );
+}
+
+function RegisterDetailsScreen({ email, onClose, onShowLogin, onRegisterComplete }) {
+  const [form, setForm] = useState({
+    name: "",
+    studentId: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [error, setError] = useState("");
+  const passwordMismatch = Boolean(form.confirmPassword) && form.password !== form.confirmPassword;
+
+  function updateForm(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setError("");
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    if (!form.name.trim() || !form.studentId.trim() || !form.password || !form.confirmPassword) {
+      setError("모든 항목을 입력해 주세요.");
+      return;
+    }
+
+    if (passwordMismatch) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    setError("");
+    onRegisterComplete({ name: form.name.trim(), email });
+  }
+
+  return (
+    <AuthShell
+      title="회원가입"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={(
+        <>
+          <span>이미 계정이 있나요?</span>
+          <button className="inline-link" type="button" onClick={onShowLogin}>로그인</button>
+        </>
+      )}
+    >
+      <div className="auth-fields">
+        <div className="auth-step">2 / 2 기본 정보</div>
+        <label className="field">
+          <span>이름</span>
+          <input
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder="홍길동"
+            autoComplete="name"
+          />
+        </label>
+        <label className="field">
+          <span>학번</span>
+          <input
+            inputMode="numeric"
+            value={form.studentId}
+            onChange={(event) => updateForm("studentId", event.target.value.replace(/\D/g, ""))}
+            placeholder="2026000000"
+          />
+        </label>
+        <label className="field auth-readonly">
+          <span>이메일</span>
+          <input value={email} readOnly />
+        </label>
+        <label className="field">
+          <span>비밀번호</span>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(event) => updateForm("password", event.target.value)}
+            placeholder="비밀번호"
+            autoComplete="new-password"
+          />
+        </label>
+        <label className="field">
+          <span>비밀번호 확인</span>
+          <input
+            type="password"
+            value={form.confirmPassword}
+            onChange={(event) => updateForm("confirmPassword", event.target.value)}
+            placeholder="비밀번호 확인"
+            autoComplete="new-password"
+          />
+        </label>
+        {passwordMismatch && <p className="field-error">비밀번호가 일치하지 않습니다.</p>}
+        {error && !passwordMismatch && <p className="field-error">{error}</p>}
+        <button className="primary-action auth-submit" type="submit">가입하기</button>
+      </div>
+    </AuthShell>
+  );
+}
+
+function isDonggukEmail(email) {
+  return /^[^\s@]+@dongguk\.ac\.kr$/.test(email);
 }
 
 function AppHeader({
@@ -651,7 +1056,42 @@ function MessageListSection({ title, messages, itemById, emptyText, onSelectMess
   );
 }
 
-function ProfileView({ profile, foundCount, lostCount, onAvatarChange, onNicknameChange, onNavigate }) {
+function ProfileView({
+  authUser,
+  profile,
+  foundCount,
+  lostCount,
+  onAvatarChange,
+  onNicknameChange,
+  onLogin,
+  onRegister,
+  onLogout,
+  onNavigate,
+}) {
+  if (!authUser) {
+    return (
+      <div className="content-view profile-view">
+        <section className="profile-auth-panel">
+          <div className="profile-auth-avatar">
+            <UserIcon />
+          </div>
+          <div className="profile-auth-copy">
+            <h2>로그인이 필요합니다</h2>
+            <p>마이페이지와 내 게시글을 확인할 수 있습니다.</p>
+          </div>
+          <div className="profile-auth-actions">
+            <button className="primary-action" type="button" onClick={onLogin}>
+              로그인
+            </button>
+            <button className="secondary-action" type="button" onClick={onRegister}>
+              회원가입
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="content-view profile-view">
       <section className="profile-card">
@@ -676,6 +1116,12 @@ function ProfileView({ profile, foundCount, lostCount, onAvatarChange, onNicknam
             placeholder="닉네임을 입력하세요"
           />
         </label>
+        <div className="profile-account-row">
+          <span>{authUser.email}</span>
+          <button className="inline-link" type="button" onClick={onLogout}>
+            로그아웃
+          </button>
+        </div>
       </section>
 
       <section className="profile-menu" aria-label="마이페이지 메뉴">
@@ -744,30 +1190,32 @@ function RulesView() {
 }
 
 function OfficialCampusMap({ items, onSelectItem }) {
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [transform, setTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+    minScale: 1,
+    maxScale: 3,
+    ready: false,
+  });
   const viewportRef = useRef(null);
   const transformRef = useRef(transform);
+  const zoomAtRef = useRef(null);
   const pointersRef = useRef(new Map());
   const gestureRef = useRef(null);
 
   function applyTransform(nextTransform) {
-    const clampedScale = clamp(nextTransform.scale, 1, 3);
     const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-    if (!rect) {
-      const fallbackTransform = { x: 0, y: 0, scale: clampedScale };
-      transformRef.current = fallbackTransform;
-      setTransform(fallbackTransform);
-      return;
-    }
-
-    const minX = rect.width - rect.width * clampedScale;
-    const minY = rect.height - rect.height * clampedScale;
-    const clampedTransform = {
-      x: clamp(nextTransform.x, minX, 0),
-      y: clamp(nextTransform.y, minY, 0),
-      scale: clampedScale,
-    };
+    const current = transformRef.current;
+    const clampedTransform = constrainMapTransform({
+      ...current,
+      ...nextTransform,
+      minScale: current.minScale,
+      maxScale: current.maxScale,
+      ready: true,
+    }, rect);
 
     transformRef.current = clampedTransform;
     setTransform(clampedTransform);
@@ -778,7 +1226,7 @@ function OfficialCampusMap({ items, onSelectItem }) {
 
     const rect = currentTarget.getBoundingClientRect();
     const current = transformRef.current;
-    const nextScale = clamp(current.scale * factor, 1, 3);
+    const nextScale = clamp(current.scale * factor, current.minScale, current.maxScale);
     const pointX = clientX - rect.left;
     const pointY = clientY - rect.top;
     const scaleRatio = nextScale / current.scale;
@@ -790,17 +1238,65 @@ function OfficialCampusMap({ items, onSelectItem }) {
     });
   }
 
+  useEffect(() => {
+    zoomAtRef.current = zoomAt;
+  });
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    function syncViewport() {
+      const rect = viewport.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const { minScale, maxScale } = getMapScaleBounds(rect);
+      const current = transformRef.current;
+      const zoom = current.ready ? current.scale / current.minScale : 1;
+      const scale = clamp(minScale * zoom, minScale, maxScale);
+      const nextTransform = constrainMapTransform({
+        x: current.ready ? current.x : (rect.width - mapImageSize.width * scale) / 2,
+        y: current.ready ? current.y : (rect.height - mapImageSize.height * scale) / 2,
+        scale,
+        minScale,
+        maxScale,
+        ready: true,
+      }, rect);
+
+      transformRef.current = nextTransform;
+      setTransform(nextTransform);
+    }
+
+    syncViewport();
+    viewport.addEventListener("wheel", handleNativeWheel, { passive: false });
+
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(syncViewport);
+      resizeObserver.observe(viewport);
+      return () => {
+        viewport.removeEventListener("wheel", handleNativeWheel);
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener("resize", syncViewport);
+    return () => {
+      viewport.removeEventListener("wheel", handleNativeWheel);
+      window.removeEventListener("resize", syncViewport);
+    };
+
+    function handleNativeWheel(event) {
+      event.preventDefault();
+      zoomAtRef.current?.(event.clientX, event.clientY, event.deltaY < 0 ? 1.16 : 0.86, viewport);
+    }
+  }, []);
+
   function zoomFromControls(factor) {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
     const rect = viewport.getBoundingClientRect();
     zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor, viewport);
-  }
-
-  function handleWheel(event) {
-    event.preventDefault();
-    zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.16 : 0.86, event.currentTarget);
   }
 
   function handlePointerDown(event) {
@@ -851,7 +1347,12 @@ function OfficialCampusMap({ items, onSelectItem }) {
       const [first, second] = [...pointersRef.current.values()];
       const currentDistance = distanceBetween(first, second);
       const currentCenter = toLocalPoint(centerBetween(first, second), event.currentTarget);
-      const nextScale = clamp(gesture.baseScale * (currentDistance / gesture.startDistance), 1, 3);
+      const current = transformRef.current;
+      const nextScale = clamp(
+        gesture.baseScale * (currentDistance / gesture.startDistance),
+        current.minScale,
+        current.maxScale,
+      );
 
       applyTransform({
         x: currentCenter.x - gesture.baseMapX * nextScale,
@@ -900,7 +1401,6 @@ function OfficialCampusMap({ items, onSelectItem }) {
       <div
         ref={viewportRef}
         className="map-viewport"
-        onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -909,6 +1409,8 @@ function OfficialCampusMap({ items, onSelectItem }) {
         <div
           className="map-transform-layer"
           style={{
+            width: `${mapImageSize.width}px`,
+            height: `${mapImageSize.height}px`,
             transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
           }}
         >
@@ -918,23 +1420,24 @@ function OfficialCampusMap({ items, onSelectItem }) {
             alt="동국대학교 WISE캠퍼스 지도"
             draggable="false"
           />
-          <div className="service-pin-layer">
-            {items.map((item) => {
-              const point = toCampusPoint(item.location);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`map-pin ${item.type}`}
-                  style={{ left: `${point.x}%`, top: `${point.y}%` }}
-                  onClick={() => onSelectItem(item)}
-                  aria-label={`${item.title} 위치`}
-                >
-                  <span className="pin-symbol">{item.type === "found" ? "!" : "?"}</span>
-                </button>
-              );
-            })}
-          </div>
+        </div>
+        <div className="service-pin-layer">
+          {items.map((item) => {
+            const point = toCampusPoint(item.location);
+            const viewportPoint = toViewportMapPoint(point, transform);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`map-pin ${item.type}`}
+                style={{ left: `${viewportPoint.x}px`, top: `${viewportPoint.y}px` }}
+                onClick={() => onSelectItem(item)}
+                aria-label={`${item.title} 위치`}
+              >
+                <span className="pin-symbol">{item.type === "found" ? "!" : "?"}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="map-controls" aria-label="지도 확대 축소">
@@ -950,20 +1453,88 @@ function OfficialCampusMap({ items, onSelectItem }) {
   );
 }
 
-function toCampusPoint({ lat, lng }) {
-  const bounds = {
-    north: 35.86645,
-    south: 35.85805,
-    west: 129.19045,
-    east: 129.19815,
+function getMapScaleBounds(rect) {
+  const minScale = Math.max(rect.width / mapImageSize.width, rect.height / mapImageSize.height);
+  return {
+    minScale,
+    maxScale: Math.max(minScale * 3, 1),
   };
-  const x = 7 + ((lng - bounds.west) / (bounds.east - bounds.west)) * 86;
-  const y = 8 + ((bounds.north - lat) / (bounds.north - bounds.south)) * 84;
-  const visible =
-    lat <= bounds.north &&
-    lat >= bounds.south &&
-    lng >= bounds.west &&
-    lng <= bounds.east;
+}
+
+function constrainMapTransform(transform, rect) {
+  const scale = clamp(transform.scale, transform.minScale, transform.maxScale);
+  const scaledWidth = mapImageSize.width * scale;
+  const scaledHeight = mapImageSize.height * scale;
+  const x = clamp(transform.x, Math.min(rect.width - scaledWidth, 0), 0);
+  const y = clamp(transform.y, Math.min(rect.height - scaledHeight, 0), 0);
+
+  return {
+    ...transform,
+    x,
+    y,
+    scale,
+  };
+}
+
+function toViewportMapPoint(point, transform) {
+  return {
+    x: transform.x + (point.x / 100) * mapImageSize.width * transform.scale,
+    y: transform.y + (point.y / 100) * mapImageSize.height * transform.scale,
+  };
+}
+
+function getViewportCenterMapPoint(transform, rect) {
+  return {
+    x: clamp(((rect.width / 2 - transform.x) / (mapImageSize.width * transform.scale)) * 100, 0, 100),
+    y: clamp(((rect.height / 2 - transform.y) / (mapImageSize.height * transform.scale)) * 100, 0, 100),
+  };
+}
+
+function getPickedLocation(point) {
+  const location = toCampusLocation(point);
+  const nearestSpot = getNearestCampusSpot(location);
+
+  return {
+    point,
+    place: nearestSpot ? `${nearestSpot.name} 근처` : "지도 지정 위치",
+    location,
+  };
+}
+
+function toCampusLocation(point) {
+  const x = clamp(point.x, 7, 93);
+  const y = clamp(point.y, 8, 92);
+
+  return {
+    lat: campusBounds.north - ((y - 8) / 84) * (campusBounds.north - campusBounds.south),
+    lng: campusBounds.west + ((x - 7) / 86) * (campusBounds.east - campusBounds.west),
+  };
+}
+
+function getNearestCampusSpot(location) {
+  return buildingSearchSpots.reduce((nearest, spot) => {
+    const distance = Math.hypot(location.lat - spot.lat, location.lng - spot.lng);
+    if (!nearest || distance < nearest.distance) {
+      return { spot, distance };
+    }
+
+    return nearest;
+  }, null)?.spot;
+}
+
+function isInsideCampusBounds({ lat, lng }) {
+  return (
+    lat <= campusBounds.north &&
+    lat >= campusBounds.south &&
+    lng >= campusBounds.west &&
+    lng <= campusBounds.east
+  );
+}
+
+function toCampusPoint({ lat, lng }) {
+  const x = 7 + ((lng - campusBounds.west) / (campusBounds.east - campusBounds.west)) * 86;
+  const y = 8 + ((campusBounds.north - lat) / (campusBounds.north - campusBounds.south)) * 84;
+  const visible = isInsideCampusBounds({ lat, lng });
 
   return {
     x,
@@ -1120,6 +1691,7 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
 
 function CreateSheet({ onClose, onSubmit }) {
   const [draft, setDraft] = useState(emptyDraft);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
 
   function updateDraft(key, value) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -1156,22 +1728,18 @@ function CreateSheet({ onClose, onSubmit }) {
     }
   }
 
-  function handlePlaceChange(placeName) {
-    const spot = campusSpots.find((spotItem) => spotItem.name === placeName);
+  function handleLocationSelect(selection) {
     setDraft((prev) => ({
       ...prev,
-      place: placeName,
-      location: spot
-        ? {
-            x: spot.x,
-            y: spot.y,
-            lat: spot.lat,
-            lng: spot.lng,
-            source: "MANUAL_SELECT",
-          }
-        : prev.location,
+      place: selection.place,
+      location: selection.location,
     }));
+    setIsLocationPickerOpen(false);
   }
+
+  const locationLabel = draft.location
+    ? `${draft.place} (${draft.location.lat.toFixed(5)}, ${draft.location.lng.toFixed(5)})`
+    : "지도에서 핀으로 위치를 지정해 주세요.";
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -1247,23 +1815,22 @@ function CreateSheet({ onClose, onSubmit }) {
           </label>
         )}
 
-        <label className="field">
-          <span>{draft.type === "found" ? "발견 위치" : "예상 분실 위치"}</span>
-          <select value={draft.place} onChange={(event) => handlePlaceChange(event.target.value)}>
-            {campusSpots.map((spot) => (
-              <option key={spot.id} value={spot.name}>
-                {spot.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <section className="location-field" aria-label={draft.type === "found" ? "발견 위치" : "예상 분실 위치"}>
+          <div>
+            <span>{draft.type === "found" ? "발견 위치" : "예상 분실 위치"}</span>
+            <strong>{locationLabel}</strong>
+          </div>
+          <button className="secondary-action" type="button" onClick={() => setIsLocationPickerOpen(true)}>
+            지도에서 위치 지정
+          </button>
+        </section>
 
         <label className="field">
           <span>설명</span>
           <textarea
             value={draft.description}
             onChange={(event) => updateDraft("description", event.target.value)}
-            placeholder="물품 특징과 보관 위치를 적어주세요."
+            placeholder="분실물의 설명과 잃어버린 상세 위치를 적어주세요."
           />
         </label>
 
@@ -1271,6 +1838,439 @@ function CreateSheet({ onClose, onSubmit }) {
           등록하기
         </button>
       </form>
+
+      {isLocationPickerOpen && (
+        <LocationPickerSheet
+          type={draft.type}
+          initialLocation={draft.location}
+          initialPlace={draft.place}
+          onClose={() => setIsLocationPickerOpen(false)}
+          onSelect={handleLocationSelect}
+        />
+      )}
+    </div>
+  );
+}
+
+function LocationPickerSheet({ type, initialLocation, initialPlace, onClose, onSelect }) {
+  const initialPoint = useMemo(() => {
+    if (initialLocation?.lat && initialLocation?.lng) {
+      return toCampusPoint(initialLocation);
+    }
+
+    const spot = campusSpots.find((entry) => entry.name === initialPlace) ?? campusSpots[0];
+    return toCampusPoint(spot);
+  }, [initialLocation, initialPlace]);
+  const [transform, setTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+    minScale: 1,
+    maxScale: 3,
+    ready: false,
+  });
+  const [picked, setPicked] = useState(() => getPickedLocation(initialPoint));
+  const [buildingQuery, setBuildingQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [locationNotice, setLocationNotice] = useState("현재 위치를 확인하는 중입니다.");
+  const viewportRef = useRef(null);
+  const transformRef = useRef(transform);
+  const zoomAtRef = useRef(null);
+  const moveToPointRef = useRef(null);
+  const pointersRef = useRef(new Map());
+  const gestureRef = useRef(null);
+  const normalizedBuildingQuery = buildingQuery.trim().toLowerCase();
+  const buildingSuggestions = useMemo(() => {
+    if (!normalizedBuildingQuery) return buildingSearchSpots;
+
+    return buildingSearchSpots.filter((building) =>
+      building.name.toLowerCase().includes(normalizedBuildingQuery),
+    );
+  }, [normalizedBuildingQuery]);
+
+  function syncPicked(nextTransform, rect) {
+    const point = getViewportCenterMapPoint(nextTransform, rect);
+    setPicked(getPickedLocation(point));
+  }
+
+  function applyTransform(nextTransform) {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const current = transformRef.current;
+    const clampedTransform = constrainMapTransform({
+      ...current,
+      ...nextTransform,
+      minScale: current.minScale,
+      maxScale: current.maxScale,
+      ready: true,
+    }, rect);
+
+    transformRef.current = clampedTransform;
+    setTransform(clampedTransform);
+    syncPicked(clampedTransform, rect);
+  }
+
+  function zoomAt(clientX, clientY, factor, currentTarget) {
+    if (!currentTarget) return;
+
+    const rect = currentTarget.getBoundingClientRect();
+    const current = transformRef.current;
+    const nextScale = clamp(current.scale * factor, current.minScale, current.maxScale);
+    const pointX = clientX - rect.left;
+    const pointY = clientY - rect.top;
+    const scaleRatio = nextScale / current.scale;
+
+    applyTransform({
+      x: pointX - (pointX - current.x) * scaleRatio,
+      y: pointY - (pointY - current.y) * scaleRatio,
+      scale: nextScale,
+    });
+  }
+
+  function moveToPoint(point, options = {}) {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const current = transformRef.current;
+    const nextScale = clamp(
+      options.scale ?? Math.max(current.scale, current.minScale * 1.65),
+      current.minScale,
+      current.maxScale,
+    );
+
+    applyTransform({
+      x: rect.width / 2 - (point.x / 100) * mapImageSize.width * nextScale,
+      y: rect.height / 2 - (point.y / 100) * mapImageSize.height * nextScale,
+      scale: nextScale,
+    });
+  }
+
+  function selectBuilding(building) {
+    const point = toCampusPoint(building);
+    setBuildingQuery(building.name);
+    setIsSearchFocused(false);
+    setLocationNotice(`${building.name} 위치로 이동했습니다.`);
+    setPicked({
+      point,
+      place: building.name,
+      location: {
+        lat: building.lat,
+        lng: building.lng,
+      },
+    });
+    moveToPoint(point);
+  }
+
+  useEffect(() => {
+    zoomAtRef.current = zoomAt;
+    moveToPointRef.current = moveToPoint;
+  });
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    function syncViewport() {
+      const rect = viewport.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const { minScale, maxScale } = getMapScaleBounds(rect);
+      const current = transformRef.current;
+      const scale = current.ready ? clamp(current.scale, minScale, maxScale) : minScale * 1.35;
+      const nextTransform = constrainMapTransform({
+        x: current.ready
+          ? current.x
+          : rect.width / 2 - (initialPoint.x / 100) * mapImageSize.width * scale,
+        y: current.ready
+          ? current.y
+          : rect.height / 2 - (initialPoint.y / 100) * mapImageSize.height * scale,
+        scale,
+        minScale,
+        maxScale,
+        ready: true,
+      }, rect);
+
+      transformRef.current = nextTransform;
+      setTransform(nextTransform);
+      syncPicked(nextTransform, rect);
+    }
+
+    syncViewport();
+    viewport.addEventListener("wheel", handleNativeWheel, { passive: false });
+
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(syncViewport);
+      resizeObserver.observe(viewport);
+      return () => {
+        viewport.removeEventListener("wheel", handleNativeWheel);
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener("resize", syncViewport);
+    return () => {
+      viewport.removeEventListener("wheel", handleNativeWheel);
+      window.removeEventListener("resize", syncViewport);
+    };
+
+    function handleNativeWheel(event) {
+      event.preventDefault();
+      zoomAtRef.current?.(event.clientX, event.clientY, event.deltaY < 0 ? 1.16 : 0.86, viewport);
+    }
+  }, [initialPoint.x, initialPoint.y]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!navigator.geolocation) {
+      const noticeTimer = window.setTimeout(() => {
+        setLocationNotice("현재 위치를 사용할 수 없어 기본 위치에서 시작합니다.");
+      }, 0);
+
+      return () => window.clearTimeout(noticeTimer);
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (ignore) return;
+
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        if (!isInsideCampusBounds(location)) {
+          setLocationNotice("현재 위치가 캠퍼스 지도 범위 밖이라 기본 위치에서 시작합니다.");
+          return;
+        }
+
+        const point = toCampusPoint(location);
+        setLocationNotice("현재 위치에서 시작합니다.");
+        setPicked(getPickedLocation(point));
+        moveToPointRef.current?.(point, { scale: transformRef.current.minScale * 1.75 });
+      },
+      () => {
+        if (!ignore) {
+          setLocationNotice("현재 위치 권한이 없어 기본 위치에서 시작합니다.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 6000,
+      },
+    );
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  function zoomFromControls(factor) {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const rect = viewport.getBoundingClientRect();
+    zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, factor, viewport);
+  }
+
+  function handlePointerDown(event) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    if (pointersRef.current.size === 1) {
+      const current = transformRef.current;
+      gestureRef.current = {
+        mode: "drag",
+        startX: event.clientX,
+        startY: event.clientY,
+        baseX: current.x,
+        baseY: current.y,
+      };
+    }
+
+    if (pointersRef.current.size === 2) {
+      startPinchGesture(event.currentTarget);
+    }
+  }
+
+  function handlePointerMove(event) {
+    if (!pointersRef.current.has(event.pointerId)) return;
+
+    pointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+
+    if (gesture.mode === "drag" && pointersRef.current.size === 1) {
+      applyTransform({
+        x: gesture.baseX + event.clientX - gesture.startX,
+        y: gesture.baseY + event.clientY - gesture.startY,
+        scale: transformRef.current.scale,
+      });
+    }
+
+    if (gesture.mode === "pinch" && pointersRef.current.size >= 2) {
+      const [first, second] = [...pointersRef.current.values()];
+      const currentDistance = distanceBetween(first, second);
+      const currentCenter = toLocalPoint(centerBetween(first, second), event.currentTarget);
+      const current = transformRef.current;
+      const nextScale = clamp(
+        gesture.baseScale * (currentDistance / gesture.startDistance),
+        current.minScale,
+        current.maxScale,
+      );
+
+      applyTransform({
+        x: currentCenter.x - gesture.baseMapX * nextScale,
+        y: currentCenter.y - gesture.baseMapY * nextScale,
+        scale: nextScale,
+      });
+    }
+  }
+
+  function handlePointerUp(event) {
+    pointersRef.current.delete(event.pointerId);
+
+    if (pointersRef.current.size === 0) {
+      gestureRef.current = null;
+      return;
+    }
+
+    if (pointersRef.current.size === 1) {
+      const [remainingPointer] = [...pointersRef.current.values()];
+      const current = transformRef.current;
+      gestureRef.current = {
+        mode: "drag",
+        startX: remainingPointer.x,
+        startY: remainingPointer.y,
+        baseX: current.x,
+        baseY: current.y,
+      };
+    }
+  }
+
+  function startPinchGesture(currentTarget) {
+    const [first, second] = [...pointersRef.current.values()];
+    const current = transformRef.current;
+    const startCenter = toLocalPoint(centerBetween(first, second), currentTarget);
+    gestureRef.current = {
+      mode: "pinch",
+      startDistance: distanceBetween(first, second),
+      baseScale: current.scale,
+      baseMapX: (startCenter.x - current.x) / current.scale,
+      baseMapY: (startCenter.y - current.y) / current.scale,
+    };
+  }
+
+  function confirmLocation() {
+    onSelect({
+      place: picked.place,
+      location: {
+        ...picked.location,
+        x: picked.point.x,
+        y: picked.point.y,
+        source: "PIN_SELECT",
+      },
+    });
+  }
+
+  return (
+    <div className="nested-sheet-backdrop">
+      <article className="sheet location-picker-sheet">
+        <div className="sheet-handle" />
+        <div className="sheet-header">
+          <h2>{type === "found" ? "발견 위치 지정" : "분실 위치 지정"}</h2>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="닫기">
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="building-search">
+          <label className="search-box">
+            <SearchIcon />
+            <input
+              value={buildingQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(event) => {
+                setBuildingQuery(event.target.value);
+                setIsSearchFocused(true);
+              }}
+              placeholder="건물 이름 검색"
+              autoComplete="off"
+            />
+          </label>
+          {isSearchFocused && (
+            <div className="building-suggestion-list">
+              {buildingSuggestions.length > 0 ? (
+                buildingSuggestions.map((building) => (
+                  <button key={building.id} type="button" onClick={() => selectBuilding(building)}>
+                    <strong>{building.name}</strong>
+                  </button>
+                ))
+              ) : (
+                <div className="building-suggestion-empty">검색 결과가 없습니다.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="location-picker-map">
+          <div
+            ref={viewportRef}
+            className="map-viewport location-picker-viewport"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            <div
+              className="map-transform-layer"
+              style={{
+                width: `${mapImageSize.width}px`,
+                height: `${mapImageSize.height}px`,
+                transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
+              }}
+            >
+              <img
+                className="campus-map-base"
+                src="/assets/campus-map-base.png"
+                alt="동국대학교 WISE캠퍼스 지도"
+                draggable="false"
+              />
+            </div>
+            <div className={`location-center-pin ${type}`} aria-hidden="true">
+              <span className="pin-symbol">{type === "found" ? "!" : "?"}</span>
+            </div>
+          </div>
+          <div className="map-controls" aria-label="지도 확대 축소">
+            <button type="button" onClick={() => zoomFromControls(1.2)} aria-label="확대">
+              +
+            </button>
+            <button type="button" onClick={() => zoomFromControls(0.84)} aria-label="축소">
+              -
+            </button>
+          </div>
+          <div className="map-source">지도를 움직여 핀 위치 지정</div>
+        </div>
+
+        <div className="location-picker-summary">
+          <strong>{picked.place}</strong>
+          <span>{picked.location.lat.toFixed(6)}, {picked.location.lng.toFixed(6)}</span>
+          <small>{locationNotice}</small>
+        </div>
+
+        <button className="primary-action" type="button" onClick={confirmLocation}>
+          이 위치로 지정
+        </button>
+      </article>
     </div>
   );
 }
@@ -1283,8 +2283,6 @@ function metadataText(status) {
       return "사진 메타데이터로 위치 설정됨";
     case "metadata-empty":
       return "사진 위치 없음, 선택 위치 사용";
-    default:
-      return "사진 GPS가 있으면 위치가 자동 설정됩니다.";
   }
 }
 
