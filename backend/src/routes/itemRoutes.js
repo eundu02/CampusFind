@@ -89,7 +89,6 @@ router.post("/", async (req, res) => {
 
   try {
     const {
-      author_id,
       category_id,
       building_id,
       type,
@@ -102,8 +101,9 @@ router.post("/", async (req, res) => {
       images = [],
     } = req.body;
 
+    const author_id = req.user.id;
+
     if (
-      !author_id ||
       !category_id ||
       !building_id ||
       !type ||
@@ -622,7 +622,6 @@ router.patch("/:id", async (req, res) => {
   try {
     const itemId = Number(req.params.id);
     const {
-      author_id,
       category_id,
       building_id,
       type,
@@ -641,13 +640,7 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const authorId = Number(author_id);
-
-    if (!Number.isInteger(authorId) || authorId <= 0) {
-      return res.status(400).json({
-        message: "author_id는 1 이상의 정수여야 합니다.",
-      });
-    }
+    const authorId = Number(req.user.id);
 
     if (
       (latitude === undefined && longitude !== undefined) ||
@@ -829,17 +822,11 @@ router.delete("/:id", async (req, res) => {
 
   try {
     const itemId = Number(req.params.id);
-    const authorId = Number(req.body.author_id);
+    const authorId = Number(req.user.id);
 
     if (!Number.isInteger(itemId) || itemId <= 0) {
       return res.status(400).json({
         message: "id는 1 이상의 정수여야 합니다.",
-      });
-    }
-
-    if (!Number.isInteger(authorId) || authorId <= 0) {
-      return res.status(400).json({
-        message: "author_id는 1 이상의 정수여야 합니다.",
       });
     }
 

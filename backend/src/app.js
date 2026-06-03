@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const pool = require("./config/db");
 
 const swaggerUi = require("swagger-ui-express");
@@ -8,17 +9,32 @@ const imageRoutes = require("./routes/imageRoutes");
 const itemRoutes = require("./routes/itemRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const buildingRoutes = require("./routes/buildingRoutes");
+const authRoutes = require("./routes/authRoutes");
+const authMiddleware = require("./middlewares/auth");
 
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use("/api/images", imageRoutes);
-app.use("/api/items", itemRoutes);
-app.use("/api/rooms", messageRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+
+// 아이템: 조회는 누구나, 등록/수정/삭제는 로그인 필요
+app.use("/api/items", (req, res, next) => {
+  if (["POST", "PATCH", "DELETE"].includes(req.method)) {
+    return authMiddleware(req, res, next);
+  }
+  next();
+}, itemRoutes);
+
+// 이미지 업로드: 로그인 필요
+app.use("/api/images", authMiddleware, imageRoutes);
+
+// 쪽지: 전체 로그인 필요
+app.use("/api/rooms", authMiddleware, messageRoutes);
 
 app.get("/", async (req, res) => {
   try {
