@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import exifr from "exifr";
 import { createItemOnApi, fetchItemsFromApi, isBackendEnabled, sendMessageOnApi } from "./api.js";
-import { campusSpots, categories, initialItems } from "./data.js";
+import { campusMapPoints, campusSpots, categories, findCampusMapPoint, initialItems } from "./data.js";
 import {
   BackIcon,
   CloseIcon,
@@ -147,7 +147,17 @@ const buildingSearchSpots = [
   { id: 14, name: "금장생활관 보현동", lat: 35.8639100, lng: 129.1913520 },
   { id: 15, name: "금장생활관 금강동", lat: 35.8636720, lng: 129.1909360 },
   { id: 16, name: "대운동장", lat: 35.8606090, lng: 129.1945690 },
-];
+].map((building) => {
+  const mapPoint = findCampusMapPoint(building.name);
+
+  if (!mapPoint) return building;
+
+  return {
+    ...building,
+    mapX: mapPoint.x,
+    mapY: mapPoint.y,
+  };
+});
 
 function App() {
   const [authMode, setAuthMode] = useState(null);
@@ -1492,12 +1502,16 @@ function getViewportCenterMapPoint(transform, rect) {
 
 function getPickedLocation(point) {
   const location = toCampusLocation(point);
-  const nearestSpot = getNearestCampusSpot(location);
+  const nearestSpot = getNearestCampusSpot(point);
 
   return {
     point,
     place: nearestSpot ? `${nearestSpot.name} 근처` : "지도 지정 위치",
-    location,
+    location: {
+      ...location,
+      mapX: point.x,
+      mapY: point.y,
+    },
   };
 }
 
@@ -1511,7 +1525,22 @@ function toCampusLocation(point) {
   };
 }
 
-function getNearestCampusSpot(location) {
+function getNearestCampusSpot(point) {
+  const nearestMapPoint = campusMapPoints.reduce((nearest, spot) => {
+    const distance = Math.hypot(point.x - spot.x, point.y - spot.y);
+    if (!nearest || distance < nearest.distance) {
+      return { spot, distance };
+    }
+
+    return nearest;
+  }, null);
+
+  if (nearestMapPoint && nearestMapPoint.distance < 7) {
+    return nearestMapPoint.spot;
+  }
+
+  const location = toCampusLocation(point);
+
   return buildingSearchSpots.reduce((nearest, spot) => {
     const distance = Math.hypot(location.lat - spot.lat, location.lng - spot.lng);
     if (!nearest || distance < nearest.distance) {
@@ -1531,7 +1560,15 @@ function isInsideCampusBounds({ lat, lng }) {
   );
 }
 
-function toCampusPoint({ lat, lng }) {
+function toCampusPoint({ lat, lng, mapX, mapY }) {
+  if (Number.isFinite(mapX) && Number.isFinite(mapY)) {
+    return {
+      x: clamp(mapX, 0, 100),
+      y: clamp(mapY, 0, 100),
+      visible: true,
+    };
+  }
+
   const x = 7 + ((lng - campusBounds.west) / (campusBounds.east - campusBounds.west)) * 86;
   const y = 8 + ((campusBounds.north - lat) / (campusBounds.north - campusBounds.south)) * 84;
   const visible = isInsideCampusBounds({ lat, lng });
@@ -1951,15 +1988,17 @@ function LocationPickerSheet({ type, initialLocation, initialPlace, onClose, onS
     setBuildingQuery(building.name);
     setIsSearchFocused(false);
     setLocationNotice(`${building.name} 위치로 이동했습니다.`);
+    moveToPoint(point);
     setPicked({
       point,
       place: building.name,
       location: {
         lat: building.lat,
         lng: building.lng,
+        mapX: point.x,
+        mapY: point.y,
       },
     });
-    moveToPoint(point);
   }
 
   useEffect(() => {
@@ -2177,6 +2216,8 @@ function LocationPickerSheet({ type, initialLocation, initialPlace, onClose, onS
         ...picked.location,
         x: picked.point.x,
         y: picked.point.y,
+        mapX: picked.point.x,
+        mapY: picked.point.y,
         source: "PIN_SELECT",
       },
     });

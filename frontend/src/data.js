@@ -21,6 +21,26 @@ export const campusSpots = [
   { id: "centennial", name: "100주년기념관", x: 11, y: 34, lat: 35.864310623585055, lng: 129.19464736406715 },
 ];
 
+export const campusMapPoints = [
+  { name: "학생회관", x: 87.2, y: 76.1 },
+  { name: "자연과학관", x: 81.8, y: 53.5 },
+  { name: "문무관", x: 87.5, y: 63.0 },
+  { name: "에너지공학관", x: 71.5, y: 52.2 },
+  { name: "100주년기념관", x: 62.8, y: 38.5 },
+  { name: "원효관", x: 50.0, y: 72.7 },
+  { name: "진흥관", x: 49.2, y: 54.8 },
+  { name: "조형관", x: 31.8, y: 56.8 },
+  { name: "금강동", x: 26.7, y: 50.7 },
+  { name: "대운동장", x: 61.5, y: 89.5 },
+];
+
+export function findCampusMapPoint(value = "") {
+  const query = value.trim();
+  if (!query) return undefined;
+
+  return campusMapPoints.find((point) => query.includes(point.name) || point.name.includes(query));
+}
+
 export const officialBuildings = [
   { id: 1, mark: "1[A]", name: "원효관", lat: 35.86175815452479, lng: 129.1934285475951 },
   { id: 2, mark: "2[K]", name: "도서관", lat: 35.86248983467, lng: 129.194561169428 },
