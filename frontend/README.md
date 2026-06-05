@@ -1,16 +1,29 @@
-# React + Vite
+# CampusFind Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+동국대학교 WISE캠퍼스 분실물 찾기 서비스의 프론트엔드입니다.
 
-Currently, two official plugins are available:
+## 실행
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+## 화면 구성
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 분실물 리스트: 검색, 카테고리, 습득/요청/사례금 필터
+- 캠퍼스 지도: 확대/축소, 드래그 이동, 습득/요청 핀 구분
+- 쪽지함: 받은 쪽지, 보낸 쪽지, 안 읽은 쪽지 수
+- 마이페이지: 프로필 사진, 닉네임, 내 게시글, 이용 규칙
 
-## Expanding the ESLint configuration
+## 백엔드 연결
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+기본값은 mock 데이터입니다. 백엔드와 연결하려면 `.env`를 만들고 아래처럼 설정합니다.
+
+```bash
+VITE_USE_BACKEND=true
+VITE_API_BASE_URL=/api
+VITE_DEMO_USER_ID=1
+```
+
+개발 서버는 `/api` 요청을 `http://localhost:5000`으로 proxy합니다.
