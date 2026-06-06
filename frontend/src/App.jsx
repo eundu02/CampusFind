@@ -3,17 +3,15 @@ import exifr from "exifr";
 import {
   clearStoredAuth,
   createItemOnApi,
-  fetchInboxMessagesFromApi,
   fetchItemsFromApi,
   getStoredAuth,
   isBackendEnabled,
   loginWithApi,
-  markRoomReadOnApi,
   saveStoredAuth,
-  sendSignupCode,
   sendMessageOnApi,
+  sendSignupCodeWithApi,
   signupWithApi,
-  verifySignupCode,
+  verifySignupCodeWithApi,
 } from "./api.js";
 import { campusSpots, categories, initialItems } from "./data.js";
 import {
@@ -49,6 +47,36 @@ const headerTitles = {
   "my-found": "찾은 리스트",
   rules: "이용 규칙",
 };
+
+const initialMessages = [
+  {
+    id: 101,
+    direction: "received",
+    itemId: 1,
+    sender: "도서관 근처 학생",
+    time: "5분 전",
+    unread: true,
+    message: "이어폰 케이스 사진을 보니 제 물건 같습니다. 오늘 5시 이후 도서관 1층에서 확인 가능할까요?",
+  },
+  {
+    id: 102,
+    direction: "received",
+    itemId: 2,
+    sender: "학생회관 안내데스크",
+    time: "18분 전",
+    unread: true,
+    message: "파란색 카드지갑과 비슷한 물건이 안내데스크에 맡겨졌습니다. 학생증 이름 일부를 확인해야 합니다.",
+  },
+  {
+    id: 103,
+    direction: "sent",
+    itemId: 3,
+    sender: "나",
+    time: "어제",
+    unread: false,
+    message: "학생증 주인 확인을 위해 학과와 이름 첫 글자를 알려주세요. 확인되면 자연과학관 앞에서 전달드릴게요.",
+  },
+];
 
 const serviceRules = [
   {
@@ -122,9 +150,7 @@ function App() {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [sentMessages, setSentMessages] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [isInboxLoading, setIsInboxLoading] = useState(false);
-  const [inboxError, setInboxError] = useState("");
+  const [messages, setMessages] = useState(initialMessages);
   const [profile, setProfile] = useState({
     nickname: authSession?.user?.nickname ?? "동국 분실물 매니저",
     avatarUrl: "",
@@ -152,38 +178,6 @@ function App() {
       ignore = true;
     };
   }, []);
-
-  useEffect(() => {
-    let ignore = false;
-
-    if (!authSession?.token || !authSession?.user?.id || !isBackendEnabled()) {
-      setMessages([]);
-      setInboxError("");
-      setIsInboxLoading(false);
-      return undefined;
-    }
-
-    setIsInboxLoading(true);
-    setInboxError("");
-
-    fetchInboxMessagesFromApi(authSession)
-      .then((remoteMessages) => {
-        if (!ignore) setMessages(remoteMessages);
-      })
-      .catch((error) => {
-        if (!ignore) {
-          setInboxError(error.response?.data?.message || error.message);
-          setMessages([]);
-        }
-      })
-      .finally(() => {
-        if (!ignore) setIsInboxLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-    };
-  }, [authSession]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -242,27 +236,28 @@ function App() {
       place: draft.place,
       time: "방금",
       imageLabel: draft.type === "found" ? draft.imageLabel || draft.photoName || "첨부 사진" : null,
-      imageUrl: draft.type === "found" && draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
       color: draft.color,
       location,
       reward: draft.type === "request" ? Number(draft.reward || 0) : 0,
     };
 
+    if (isBackendEnabled()) {
+      try {
+        const savedItem = await createItemOnApi(draft, authSession);
+        if (!savedItem) return;
+
+        setItems((prev) => [savedItem, ...prev]);
+        setSelectedItem(savedItem);
+        setIsCreateOpen(false);
+      } catch (error) {
+        window.alert(error.response?.data?.message || error.message || "게시글 저장에 실패했습니다.");
+      }
+      return;
+    }
+
     setItems((prev) => [item, ...prev]);
     setSelectedItem(item);
     setIsCreateOpen(false);
-
-    if (!isBackendEnabled()) return;
-
-    try {
-      const savedItem = await createItemOnApi(draft, authSession);
-      if (!savedItem) return;
-
-      setItems((prev) => prev.map((entry) => (entry.id === item.id ? savedItem : entry)));
-      setSelectedItem(savedItem);
-    } catch (error) {
-      console.warn("게시글 API 저장에 실패해 로컬 등록 상태를 유지합니다.", error);
-    }
   }
 
   async function sendMessage(item, message) {
@@ -289,8 +284,6 @@ function App() {
 
     try {
       await sendMessageOnApi(item, message, authSession);
-      const remoteMessages = await fetchInboxMessagesFromApi(authSession);
-      setMessages(remoteMessages);
     } catch (error) {
       setMessages((prev) =>
         prev.map((entry) =>
@@ -361,6 +354,16 @@ function App() {
     }
   }
 
+  async function handleSendSignupCode(email) {
+    setAuthError("");
+    return sendSignupCodeWithApi(email);
+  }
+
+  async function handleVerifySignupCode(form) {
+    setAuthError("");
+    return verifySignupCodeWithApi(form);
+  }
+
   function requireAuth(nextMode = "login") {
     if (authSession?.token) return true;
 
@@ -377,21 +380,6 @@ function App() {
     setIsCreateOpen(false);
     setAuthError("");
     setActiveTab("profile");
-  }
-
-  async function handleSelectMessage(message) {
-    setMessages((prev) =>
-      prev.map((item) => (item.id === message.id ? { ...item, unread: false } : item)),
-    );
-    setSelectedMessage({ ...message, unread: false });
-
-    if (!message.unread || !message.roomId || !isBackendEnabled()) return;
-
-    try {
-      await markRoomReadOnApi(message.roomId, authSession);
-    } catch (error) {
-      setInboxError(error.response?.data?.message || error.message);
-    }
   }
 
   return (
@@ -440,16 +428,14 @@ function App() {
 
           {activeTab === "inbox" && (
             <InboxView
-              authUser={authUser}
               messages={messages}
               itemById={itemById}
-              isLoading={isInboxLoading}
-              error={inboxError}
-              onLogin={() => {
-                setAuthError("");
-                setAuthMode("login");
+              onSelectMessage={(message) => {
+                setMessages((prev) =>
+                  prev.map((item) => (item.id === message.id ? { ...item, unread: false } : item)),
+                );
+                setSelectedMessage({ ...message, unread: false });
               }}
-              onSelectMessage={handleSelectMessage}
             />
           )}
 
@@ -542,6 +528,8 @@ function App() {
             }}
             onLogin={handleLogin}
             onSignup={handleSignup}
+            onSendSignupCode={handleSendSignupCode}
+            onVerifySignupCode={handleVerifySignupCode}
           />
         )}
       </main>
@@ -549,7 +537,17 @@ function App() {
   );
 }
 
-function AuthDialog({ mode, error, isSubmitting, onClose, onModeChange, onLogin, onSignup }) {
+function AuthDialog({
+  mode,
+  error,
+  isSubmitting,
+  onClose,
+  onModeChange,
+  onLogin,
+  onSignup,
+  onSendSignupCode,
+  onVerifySignupCode,
+}) {
   const title = mode === "login" ? "로그인" : "회원가입";
 
   return (
@@ -577,6 +575,8 @@ function AuthDialog({ mode, error, isSubmitting, onClose, onModeChange, onLogin,
             error={error}
             isSubmitting={isSubmitting}
             onSubmit={onSignup}
+            onSendCode={onSendSignupCode}
+            onVerifyCode={onVerifySignupCode}
             onShowLogin={() => onModeChange("login")}
           />
         )}
@@ -632,71 +632,54 @@ function LoginForm({ error, isSubmitting, onSubmit, onShowSignup }) {
   );
 }
 
-function SignupForm({ error, isSubmitting, onSubmit, onShowLogin }) {
+function SignupForm({ error, isSubmitting, onSubmit, onSendCode, onVerifyCode, onShowLogin }) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState("");
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [isVerifyingCode, setIsVerifyingCode] = useState(false);
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [otpMessage, setOtpMessage] = useState("");
-  const [otpError, setOtpError] = useState("");
   const [studentId, setStudentId] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const normalizedEmail = email.trim().toLowerCase();
+  const isEmailVerified = Boolean(normalizedEmail) && normalizedEmail === verifiedEmail;
   const passwordMismatch = Boolean(confirmPassword) && password !== confirmPassword;
 
-  function handleEmailChange(value) {
-    setEmail(value);
-    setVerificationCode("");
-    setIsEmailVerified(false);
-    setOtpMessage("");
-    setOtpError("");
-  }
-
   async function handleSendCode() {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setOtpError("학교 이메일을 먼저 입력해 주세요.");
-      return;
-    }
+    if (!normalizedEmail) return;
 
     setIsSendingCode(true);
-    setOtpError("");
-    setOtpMessage("");
+    setVerificationStatus("");
 
     try {
-      const result = await sendSignupCode(normalizedEmail);
-      setOtpMessage(result.message || "인증코드가 발송되었습니다.");
-    } catch (requestError) {
-      setOtpError(requestError.response?.data?.message || requestError.message);
+      const result = await onSendCode(normalizedEmail);
+      setVerifiedEmail("");
+      setVerificationStatus(result.message || "인증코드가 발송되었습니다.");
+    } catch (error) {
+      setVerificationStatus(error.response?.data?.message || error.message);
     } finally {
       setIsSendingCode(false);
     }
   }
 
   async function handleVerifyCode() {
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedCode = verificationCode.trim();
-    if (!normalizedEmail || !normalizedCode) {
-      setOtpError("이메일과 인증코드를 입력해 주세요.");
-      return;
-    }
+    if (!normalizedEmail || !verificationCode.trim()) return;
 
     setIsVerifyingCode(true);
-    setOtpError("");
-    setOtpMessage("");
+    setVerificationStatus("");
 
     try {
-      const result = await verifySignupCode({
+      const result = await onVerifyCode({
         email: normalizedEmail,
-        code: normalizedCode,
+        code: verificationCode.trim(),
       });
-      setIsEmailVerified(true);
-      setOtpMessage(result.message || "이메일 인증이 완료되었습니다.");
-    } catch (requestError) {
-      setIsEmailVerified(false);
-      setOtpError(requestError.response?.data?.message || requestError.message);
+      setVerifiedEmail(normalizedEmail);
+      setVerificationStatus(result.message || "이메일 인증이 완료되었습니다.");
+    } catch (error) {
+      setVerifiedEmail("");
+      setVerificationStatus(error.response?.data?.message || error.message);
     } finally {
       setIsVerifyingCode(false);
     }
@@ -708,7 +691,7 @@ function SignupForm({ error, isSubmitting, onSubmit, onShowLogin }) {
     if (passwordMismatch || !isEmailVerified) return;
 
     onSubmit({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       studentId: studentId.trim(),
       nickname: nickname.trim(),
       password,
@@ -722,39 +705,50 @@ function SignupForm({ error, isSubmitting, onSubmit, onShowLogin }) {
         <input
           type="email"
           value={email}
-          onChange={(event) => handleEmailChange(event.target.value)}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setVerifiedEmail("");
+          }}
           placeholder="student@dongguk.ac.kr"
           autoComplete="email"
           required
         />
       </label>
-      <div className="otp-actions">
-        <button className="secondary-action" type="button" onClick={handleSendCode} disabled={isSendingCode}>
-          {isSendingCode ? "발송 중" : "인증코드 발송"}
-        </button>
-      </div>
+      <button
+        type="button"
+        className="secondary-action"
+        onClick={handleSendCode}
+        disabled={isSubmitting || isSendingCode || !normalizedEmail}
+      >
+        {isSendingCode ? "발송 중" : "인증코드 발송"}
+      </button>
       <label className="field">
         <span>이메일 인증코드</span>
-        <input
-          value={verificationCode}
-          onChange={(event) => {
-            setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6));
-            setIsEmailVerified(false);
-          }}
-          placeholder="6자리 코드"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          required
-        />
+        <div className="verification-code-row">
+          <input
+            value={verificationCode}
+            onChange={(event) => {
+              setVerificationCode(event.target.value);
+              setVerifiedEmail("");
+            }}
+            placeholder="6자리 코드"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+          />
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={handleVerifyCode}
+            disabled={isSubmitting || isVerifyingCode || !normalizedEmail || !verificationCode.trim()}
+          >
+            {isVerifyingCode ? "확인 중" : "확인"}
+          </button>
+        </div>
       </label>
-      <button
-        className="auth-switch"
-        type="button"
-        onClick={handleVerifyCode}
-        disabled={isVerifyingCode || isEmailVerified}
-      >
-        {isEmailVerified ? "인증 완료" : isVerifyingCode ? "확인 중" : "인증코드 확인"}
-      </button>
+      {verificationStatus && (
+        <p className={isEmailVerified ? "auth-success" : "auth-error"}>{verificationStatus}</p>
+      )}
       <label className="field">
         <span>학번</span>
         <input
@@ -799,9 +793,7 @@ function SignupForm({ error, isSubmitting, onSubmit, onShowLogin }) {
         />
       </label>
       {passwordMismatch && <p className="auth-error">비밀번호가 일치하지 않습니다.</p>}
-      {!isEmailVerified && <p className="auth-help">이메일 인증을 완료해야 회원가입할 수 있습니다.</p>}
-      {otpMessage && <p className="auth-success">{otpMessage}</p>}
-      {otpError && <p className="auth-error">{otpError}</p>}
+      {!isEmailVerified && <p className="auth-error">이메일 인증을 완료해야 가입할 수 있습니다.</p>}
       {error && <p className="auth-error">{error}</p>}
       <button className="primary-action" type="submit" disabled={isSubmitting || passwordMismatch || !isEmailVerified}>
         {isSubmitting ? "가입 중" : "회원가입"}
@@ -960,11 +952,7 @@ function ItemVisual({ item }) {
 
   return (
     <div className="item-visual" style={{ "--item-color": item.color }}>
-      {item.imageUrl ? (
-        <img src={item.imageUrl} alt={item.title} />
-      ) : (
-        <span>{item.imageLabel?.slice(0, 4)}</span>
-      )}
+      <span>{item.imageLabel?.slice(0, 4)}</span>
     </div>
   );
 }
@@ -985,24 +973,10 @@ function MapView({ items, selectedCategory, onCategoryChange, onSelectItem }) {
   );
 }
 
-function InboxView({ authUser, messages, itemById, isLoading, error, onLogin, onSelectMessage }) {
+function InboxView({ messages, itemById, onSelectMessage }) {
   const receivedMessages = messages.filter((message) => message.direction === "received");
   const sentMessages = messages.filter((message) => message.direction === "sent");
   const unreadCount = receivedMessages.filter((message) => message.unread).length;
-
-  if (!authUser) {
-    return (
-      <div className="content-view inbox-view">
-        <section className="inbox-auth-card">
-          <h2>로그인이 필요합니다</h2>
-          <p>쪽지함은 로그인한 계정의 실제 채팅방을 불러옵니다.</p>
-          <button className="primary-action" type="button" onClick={onLogin}>
-            로그인
-          </button>
-        </section>
-      </div>
-    );
-  }
 
   return (
     <div className="content-view inbox-view">
@@ -1021,9 +995,6 @@ function InboxView({ authUser, messages, itemById, isLoading, error, onLogin, on
         </div>
       </section>
 
-      {isLoading && <div className="empty-state">쪽지함을 불러오는 중입니다.</div>}
-      {error && <div className="empty-state">쪽지함 API 오류: {error}</div>}
-
       <MessageListSection
         title="받은 쪽지"
         messages={receivedMessages}
@@ -1031,15 +1002,13 @@ function InboxView({ authUser, messages, itemById, isLoading, error, onLogin, on
         emptyText="아직 받은 쪽지가 없습니다."
         onSelectMessage={onSelectMessage}
       />
-      {!isLoading && (
-        <MessageListSection
-          title="보낸 쪽지"
-          messages={sentMessages}
-          itemById={itemById}
-          emptyText="아직 보낸 쪽지가 없습니다."
-          onSelectMessage={onSelectMessage}
-        />
-      )}
+      <MessageListSection
+        title="보낸 쪽지"
+        messages={sentMessages}
+        itemById={itemById}
+        emptyText="아직 보낸 쪽지가 없습니다."
+        onSelectMessage={onSelectMessage}
+      />
     </div>
   );
 }
@@ -1068,11 +1037,11 @@ function MessageListSection({ title, messages, itemById, emptyText, onSelectMess
                   </span>
                   <span>{message.time}</span>
                 </div>
-                <h3>{item?.title ?? message.itemTitle ?? "삭제된 게시글"}</h3>
+                <h3>{item?.title ?? "삭제된 게시글"}</h3>
                 <p>{message.message}</p>
                 <div className="message-meta-row">
                   <span>{message.direction === "received" ? message.sender : "나"}</span>
-                  {(item?.place || message.place) && <span>{item?.place ?? message.place}</span>}
+                  {item && <span>{item.place}</span>}
                 </div>
               </button>
             );
@@ -1449,9 +1418,6 @@ function KakaoCampusMap({ items, onSelectItem, appKey }) {
   useEffect(() => {
     let cancelled = false;
 
-    setStatus("loading");
-    setError("");
-
     loadKakaoMaps(appKey)
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
@@ -1743,7 +1709,7 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
         </div>
 
         <div className="message-thread-head">
-          <h2>{item?.title ?? message.itemTitle ?? "삭제된 게시글"}</h2>
+          <h2>{item?.title ?? "삭제된 게시글"}</h2>
           <span>{message.time}</span>
         </div>
         <p className="message-body">{message.message}</p>
