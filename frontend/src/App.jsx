@@ -3,10 +3,12 @@ import exifr from "exifr";
 import {
   clearStoredAuth,
   createItemOnApi,
+  fetchInboxMessagesFromApi,
   fetchItemsFromApi,
   getStoredAuth,
   isBackendEnabled,
   loginWithApi,
+  markRoomReadOnApi,
   saveStoredAuth,
   sendMessageOnApi,
   sendSignupCodeWithApi,
@@ -47,36 +49,6 @@ const headerTitles = {
   "my-found": "찾은 리스트",
   rules: "이용 규칙",
 };
-
-const initialMessages = [
-  {
-    id: 101,
-    direction: "received",
-    itemId: 1,
-    sender: "도서관 근처 학생",
-    time: "5분 전",
-    unread: true,
-    message: "이어폰 케이스 사진을 보니 제 물건 같습니다. 오늘 5시 이후 도서관 1층에서 확인 가능할까요?",
-  },
-  {
-    id: 102,
-    direction: "received",
-    itemId: 2,
-    sender: "학생회관 안내데스크",
-    time: "18분 전",
-    unread: true,
-    message: "파란색 카드지갑과 비슷한 물건이 안내데스크에 맡겨졌습니다. 학생증 이름 일부를 확인해야 합니다.",
-  },
-  {
-    id: 103,
-    direction: "sent",
-    itemId: 3,
-    sender: "나",
-    time: "어제",
-    unread: false,
-    message: "학생증 주인 확인을 위해 학과와 이름 첫 글자를 알려주세요. 확인되면 자연과학관 앞에서 전달드릴게요.",
-  },
-];
 
 const serviceRules = [
   {
@@ -150,7 +122,9 @@ function App() {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [sentMessages, setSentMessages] = useState([]);
-  const [messages, setMessages] = useState(initialMessages);
+  const [messages, setMessages] = useState([]);
+  const [isInboxLoading, setIsInboxLoading] = useState(false);
+  const [inboxError, setInboxError] = useState("");
   const [profile, setProfile] = useState({
     nickname: authSession?.user?.nickname ?? "동국 분실물 매니저",
     avatarUrl: "",
@@ -178,6 +152,38 @@ function App() {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!authSession?.token || !authSession?.user?.id || !isBackendEnabled()) {
+      setMessages([]);
+      setInboxError("");
+      setIsInboxLoading(false);
+      return undefined;
+    }
+
+    setIsInboxLoading(true);
+    setInboxError("");
+
+    fetchInboxMessagesFromApi(authSession)
+      .then((remoteMessages) => {
+        if (!ignore) setMessages(remoteMessages);
+      })
+      .catch((error) => {
+        if (!ignore) {
+          setInboxError(error.response?.data?.message || error.message);
+          setMessages([]);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsInboxLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [authSession]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -236,6 +242,7 @@ function App() {
       place: draft.place,
       time: "방금",
       imageLabel: draft.type === "found" ? draft.imageLabel || draft.photoName || "첨부 사진" : null,
+      imageUrl: draft.type === "found" && draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
       color: draft.color,
       location,
       reward: draft.type === "request" ? Number(draft.reward || 0) : 0,
@@ -284,6 +291,8 @@ function App() {
 
     try {
       await sendMessageOnApi(item, message, authSession);
+      const remoteMessages = await fetchInboxMessagesFromApi(authSession);
+      setMessages(remoteMessages);
     } catch (error) {
       setMessages((prev) =>
         prev.map((entry) =>
@@ -382,6 +391,23 @@ function App() {
     setActiveTab("profile");
   }
 
+  async function handleSelectMessage(message) {
+    const readMessage = { ...message, unread: false };
+
+    setMessages((prev) =>
+      prev.map((item) => (item.id === message.id ? readMessage : item)),
+    );
+    setSelectedMessage(readMessage);
+
+    if (!message.unread || !message.roomId || !isBackendEnabled()) return;
+
+    try {
+      await markRoomReadOnApi(message.roomId, authSession);
+    } catch (error) {
+      setInboxError(error.response?.data?.message || error.message);
+    }
+  }
+
   return (
     <div className="app-shell">
       <main className="phone-frame">
@@ -428,14 +454,16 @@ function App() {
 
           {activeTab === "inbox" && (
             <InboxView
+              authUser={authUser}
               messages={messages}
               itemById={itemById}
-              onSelectMessage={(message) => {
-                setMessages((prev) =>
-                  prev.map((item) => (item.id === message.id ? { ...item, unread: false } : item)),
-                );
-                setSelectedMessage({ ...message, unread: false });
+              isLoading={isInboxLoading}
+              error={inboxError}
+              onLogin={() => {
+                setAuthError("");
+                setAuthMode("login");
               }}
+              onSelectMessage={handleSelectMessage}
             />
           )}
 
@@ -952,7 +980,11 @@ function ItemVisual({ item }) {
 
   return (
     <div className="item-visual" style={{ "--item-color": item.color }}>
-      <span>{item.imageLabel?.slice(0, 4)}</span>
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.title} />
+      ) : (
+        <span>{item.imageLabel?.slice(0, 4)}</span>
+      )}
     </div>
   );
 }
@@ -973,10 +1005,24 @@ function MapView({ items, selectedCategory, onCategoryChange, onSelectItem }) {
   );
 }
 
-function InboxView({ messages, itemById, onSelectMessage }) {
+function InboxView({ authUser, messages, itemById, isLoading, error, onLogin, onSelectMessage }) {
   const receivedMessages = messages.filter((message) => message.direction === "received");
   const sentMessages = messages.filter((message) => message.direction === "sent");
   const unreadCount = receivedMessages.filter((message) => message.unread).length;
+
+  if (!authUser) {
+    return (
+      <div className="content-view inbox-view">
+        <section className="inbox-auth-card">
+          <h2>로그인이 필요합니다</h2>
+          <p>쪽지함은 계정별 채팅방을 서버에서 불러옵니다. 로그인 후 받은 쪽지와 보낸 쪽지를 확인할 수 있습니다.</p>
+          <button className="primary-action" type="button" onClick={onLogin}>
+            로그인하기
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="content-view inbox-view">
@@ -994,6 +1040,9 @@ function InboxView({ messages, itemById, onSelectMessage }) {
           <span>안 읽음</span>
         </div>
       </section>
+
+      {isLoading && <div className="empty-state">쪽지함을 불러오는 중입니다.</div>}
+      {error && <div className="empty-state">쪽지함 API 오류: {error}</div>}
 
       <MessageListSection
         title="받은 쪽지"
@@ -1037,11 +1086,11 @@ function MessageListSection({ title, messages, itemById, emptyText, onSelectMess
                   </span>
                   <span>{message.time}</span>
                 </div>
-                <h3>{item?.title ?? "삭제된 게시글"}</h3>
+                <h3>{item?.title ?? message.itemTitle ?? "삭제된 게시글"}</h3>
                 <p>{message.message}</p>
                 <div className="message-meta-row">
                   <span>{message.direction === "received" ? message.sender : "나"}</span>
-                  {item && <span>{item.place}</span>}
+                  {(item?.place || message.place) && <span>{item?.place ?? message.place}</span>}
                 </div>
               </button>
             );
@@ -1709,7 +1758,7 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
         </div>
 
         <div className="message-thread-head">
-          <h2>{item?.title ?? "삭제된 게시글"}</h2>
+          <h2>{item?.title ?? message.itemTitle ?? "삭제된 게시글"}</h2>
           <span>{message.time}</span>
         </div>
         <p className="message-body">{message.message}</p>
@@ -1721,7 +1770,7 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
           </div>
           <div>
             <dt>관련 위치</dt>
-            <dd>{item?.place ?? "확인 불가"}</dd>
+            <dd>{item?.place ?? message.place ?? "확인 불가"}</dd>
           </div>
         </dl>
 

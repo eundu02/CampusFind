@@ -328,6 +328,13 @@ button {
   word-break: keep-all;
 }
 
+.item-visual img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .map-thumb {
   color: #3182f6;
   background: linear-gradient(135deg, #e8f3ff, #f5f8fb);
@@ -418,6 +425,31 @@ button {
   background: #f8fafb;
   text-align: center;
   font-weight: 800;
+}
+
+.inbox-auth-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #edf0f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(25, 31, 40, 0.05);
+}
+
+.inbox-auth-card h2 {
+  margin: 0;
+  color: #191f28;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.inbox-auth-card p {
+  margin: 0;
+  color: #6b7684;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .inbox-view,
