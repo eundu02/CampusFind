@@ -19,7 +19,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
 
-// 아이템: 조회는 누구나, 등록/수정/삭제는 로그인 필요
 app.use("/api/items", (req, res, next) => {
   if (["POST", "PATCH", "DELETE"].includes(req.method)) {
     return authMiddleware(req, res, next);
@@ -27,10 +26,6 @@ app.use("/api/items", (req, res, next) => {
   next();
 }, itemRoutes);
 
-// 이미지 업로드: 로그인 필요
-app.use("/api/images", authMiddleware, imageRoutes);
-
-// 쪽지: 전체 로그인 필요
 app.use("/api/rooms", authMiddleware, messageRoutes);
 
 app.get("/", async (req, res) => {

@@ -247,6 +247,68 @@ button {
   align-items: start;
 }
 
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(25, 31, 40, 0.44);
+}
+
+.auth-card {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(25, 31, 40, 0.28);
+}
+
+.auth-card h2 {
+  margin: 0;
+  color: #191f28;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-error {
+  margin: 0;
+  color: #f04438;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.auth-switch {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  color: #3182f6;
+  background: #e8f3ff;
+  font-weight: 900;
+}
+
+.secondary-action {
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d9e0e6;
+  border-radius: 8px;
+  color: #3182f6;
+  background: #ffffff;
+  font-size: 16px;
+  font-weight: 900;
+}
+
 .content-view {
   min-height: 0;
   height: 100%;
@@ -791,6 +853,56 @@ button {
   background: #dff8f3;
 }
 
+.profile-auth-card {
+  align-content: center;
+  min-height: 260px;
+}
+
+.profile-auth-copy {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.profile-auth-copy h2 {
+  margin: 0;
+  color: #191f28;
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.profile-auth-copy p {
+  margin: 0;
+  color: #6b7684;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.profile-auth-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #6b7684;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.logout-button {
+  min-height: 50px;
+  border: 0;
+  border-radius: 8px;
+  color: #f04438;
+  background: #fff1f0;
+  font-size: 16px;
+  font-weight: 1000;
+}
+
 .subpage-intro,
 .rules-hero {
   padding: 15px;
@@ -864,7 +976,6 @@ button {
   background: #d8ecf8;
 }
 
-.map-viewport {
   position: absolute;
   inset: 0;
 }
@@ -1366,6 +1477,25 @@ button {
 }
 
 .map-pin.found {
+  background: #00a889;
+}
+
+.kakao-map-pin {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 8px;
+  box-shadow: 0 10px 24px rgba(25, 31, 40, 0.24);
+  transform: rotate(-45deg);
+}
+
+.kakao-map-pin.request {
+  background: #3182f6;
+}
+
+.kakao-map-pin.found {
   background: #00a889;
 }
 

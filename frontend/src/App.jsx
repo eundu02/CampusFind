@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import exifr from "exifr";
-import { createItemOnApi, fetchItemsFromApi, isBackendEnabled, sendMessageOnApi } from "./api.js";
-import { campusMapPoints, campusSpots, categories, findCampusMapPoint, initialItems } from "./data.js";
+
 import {
   BackIcon,
   CloseIcon,
@@ -119,50 +118,6 @@ const emptyDraft = {
   status: "idle",
 };
 
-const mapImageSize = {
-  width: 1340,
-  height: 1174,
-};
-
-const campusBounds = {
-  north: 35.86645,
-  south: 35.85805,
-  west: 129.19045,
-  east: 129.19815,
-};
-
-const buildingSearchSpots = [
-  { id: 1, name: "학생회관", lat: 35.8620820, lng: 129.1961830 },
-  { id: 3, name: "자연과학관", lat: 35.8631560, lng: 129.1965830 },
-  { id: 4, name: "문무관", lat: 35.8625480, lng: 129.1972160 },
-  { id: 5, name: "에너지공학관", lat: 35.8634350, lng: 129.1954990 },
-  { id: 6, name: "100주년기념관", lat: 35.8643850, lng: 129.1945730 },
-  { id: 7, name: "중앙도서관", lat: 35.8626220, lng: 129.1944640 },
-  { id: 8, name: "원효관", lat: 35.8618370, lng: 129.1935530 },
-  { id: 9, name: "진흥관", lat: 35.8632470, lng: 129.1932580 },
-  { id: 10, name: "평생교육원", lat: 35.8625830, lng: 129.1918100 },
-  { id: 11, name: "금장생활관 반야동", lat: 35.8636610, lng: 129.1920340 },
-  { id: 12, name: "조형관", lat: 35.8631040, lng: 129.1914490 },
-  { id: 13, name: "금장생활관 미륵동", lat: 35.8638620, lng: 129.1916020 },
-  { id: 14, name: "금장생활관 보현동", lat: 35.8639100, lng: 129.1913520 },
-  { id: 15, name: "금장생활관 금강동", lat: 35.8636720, lng: 129.1909360 },
-  { id: 16, name: "대운동장", lat: 35.8606090, lng: 129.1945690 },
-].map((building) => {
-  const mapPoint = findCampusMapPoint(building.name);
-
-  if (!mapPoint) return building;
-
-  return {
-    ...building,
-    mapX: mapPoint.x,
-    mapY: mapPoint.y,
-  };
-});
-
-function App() {
-  const [authMode, setAuthMode] = useState(null);
-  const [authUser, setAuthUser] = useState(null);
-  const [verifiedEmail, setVerifiedEmail] = useState("");
   const [activeTab, setActiveTab] = useState("list");
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
@@ -175,10 +130,12 @@ function App() {
   const [sentMessages, setSentMessages] = useState([]);
   const [messages, setMessages] = useState(initialMessages);
   const [profile, setProfile] = useState({
-    nickname: "동국 분실물 매니저",
+    nickname: authSession?.user?.nickname ?? "동국 분실물 매니저",
     avatarUrl: "",
     avatarName: "",
   });
+
+  const authUser = authSession?.user ?? null;
 
   useEffect(() => {
     let ignore = false;
@@ -269,7 +226,7 @@ function App() {
     if (!isBackendEnabled()) return;
 
     try {
-      const savedItem = await createItemOnApi(draft);
+      const savedItem = await createItemOnApi(draft, authSession);
       if (!savedItem) return;
 
       setItems((prev) => prev.map((entry) => (entry.id === item.id ? savedItem : entry)));
@@ -280,6 +237,12 @@ function App() {
   }
 
   async function sendMessage(item, message) {
+    if (!authSession?.user?.id || !authSession?.token) {
+      setAuthError("쪽지를 보내려면 먼저 로그인해 주세요.");
+      setAuthMode("login");
+      return;
+    }
+
     const sentMessage = {
       id: Date.now(),
       direction: "sent",
@@ -296,9 +259,15 @@ function App() {
     if (!isBackendEnabled()) return;
 
     try {
-      await sendMessageOnApi(item, message);
+      await sendMessageOnApi(item, message, authSession);
     } catch (error) {
-      console.warn("쪽지 API 전송에 실패해 로컬 전송 상태를 유지합니다.", error);
+      setMessages((prev) =>
+        prev.map((entry) =>
+          entry.id === sentMessage.id
+            ? { ...entry, message: `${entry.message}\n\n(API 전송 실패: ${error.message})` }
+            : entry,
+        ),
+      );
     }
   }
 
@@ -322,29 +291,6 @@ function App() {
     setActiveTab("list");
   }
 
-  function completeAuth(user = {}) {
-    setAuthUser({
-      email: user.email ?? verifiedEmail,
-      name: user.name ?? profile.nickname,
-    });
-
-    if (user.name) {
-      setProfile((prev) => ({ ...prev, nickname: user.name }));
-    }
-
-    setAuthMode(null);
-  }
-
-  function openRegister() {
-    setVerifiedEmail("");
-    setAuthMode("register-email");
-  }
-
-  function logout() {
-    setAuthUser(null);
-    setActiveTab("profile");
-  }
-
   return (
     <div className="app-shell">
       <main className={`phone-frame ${authMode ? "auth-frame" : ""}`}>
@@ -360,8 +306,7 @@ function App() {
               setVerifiedEmail(email);
               setAuthMode("register-details");
             }}
-            onRegisterComplete={completeAuth}
-          />
+
         ) : (
           <>
             <section className="screen">
@@ -506,17 +451,6 @@ function AuthScreen({
         onClose={onClose}
         onShowLogin={onShowLogin}
         onEmailVerified={onEmailVerified}
-      />
-    );
-  }
-
-  if (mode === "register-details") {
-    return (
-      <RegisterDetailsScreen
-        email={verifiedEmail}
-        onClose={onClose}
-        onShowLogin={onShowLogin}
-        onRegisterComplete={onRegisterComplete}
       />
     );
   }
@@ -771,50 +705,6 @@ function RegisterDetailsScreen({ email, onClose, onShowLogin, onRegisterComplete
             placeholder="홍길동"
             autoComplete="name"
           />
-        </label>
-        <label className="field">
-          <span>학번</span>
-          <input
-            inputMode="numeric"
-            value={form.studentId}
-            onChange={(event) => updateForm("studentId", event.target.value.replace(/\D/g, ""))}
-            placeholder="2026000000"
-          />
-        </label>
-        <label className="field auth-readonly">
-          <span>이메일</span>
-          <input value={email} readOnly />
-        </label>
-        <label className="field">
-          <span>비밀번호</span>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(event) => updateForm("password", event.target.value)}
-            placeholder="비밀번호"
-            autoComplete="new-password"
-          />
-        </label>
-        <label className="field">
-          <span>비밀번호 확인</span>
-          <input
-            type="password"
-            value={form.confirmPassword}
-            onChange={(event) => updateForm("confirmPassword", event.target.value)}
-            placeholder="비밀번호 확인"
-            autoComplete="new-password"
-          />
-        </label>
-        {passwordMismatch && <p className="field-error">비밀번호가 일치하지 않습니다.</p>}
-        {error && !passwordMismatch && <p className="field-error">{error}</p>}
-        <button className="primary-action auth-submit" type="submit">가입하기</button>
-      </div>
-    </AuthShell>
-  );
-}
-
-function isDonggukEmail(email) {
-  return /^[^\s@]+@dongguk\.ac\.kr$/.test(email);
 }
 
 function AppHeader({
@@ -1074,26 +964,20 @@ function ProfileView({
   onAvatarChange,
   onNicknameChange,
   onLogin,
-  onRegister,
+
   onLogout,
   onNavigate,
 }) {
   if (!authUser) {
     return (
       <div className="content-view profile-view">
-        <section className="profile-auth-panel">
-          <div className="profile-auth-avatar">
-            <UserIcon />
-          </div>
-          <div className="profile-auth-copy">
-            <h2>로그인이 필요합니다</h2>
-            <p>마이페이지와 내 게시글을 확인할 수 있습니다.</p>
+
           </div>
           <div className="profile-auth-actions">
             <button className="primary-action" type="button" onClick={onLogin}>
               로그인
             </button>
-            <button className="secondary-action" type="button" onClick={onRegister}>
+
               회원가입
             </button>
           </div>
@@ -1128,9 +1012,7 @@ function ProfileView({
         </label>
         <div className="profile-account-row">
           <span>{authUser.email}</span>
-          <button className="inline-link" type="button" onClick={onLogout}>
-            로그아웃
-          </button>
+
         </div>
       </section>
 
@@ -1157,6 +1039,10 @@ function ProfileView({
           <em>필독</em>
         </button>
       </section>
+
+      <button className="logout-button" type="button" onClick={onLogout}>
+        로그아웃
+      </button>
     </div>
   );
 }
@@ -1200,14 +1086,7 @@ function RulesView() {
 }
 
 function OfficialCampusMap({ items, onSelectItem }) {
-  const [transform, setTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 1,
-    minScale: 1,
-    maxScale: 3,
-    ready: false,
-  });
+
   const viewportRef = useRef(null);
   const transformRef = useRef(transform);
   const zoomAtRef = useRef(null);
@@ -1463,13 +1342,6 @@ function OfficialCampusMap({ items, onSelectItem }) {
   );
 }
 
-function getMapScaleBounds(rect) {
-  const minScale = Math.max(rect.width / mapImageSize.width, rect.height / mapImageSize.height);
-  return {
-    minScale,
-    maxScale: Math.max(minScale * 3, 1),
-  };
-}
 
 function constrainMapTransform(transform, rect) {
   const scale = clamp(transform.scale, transform.minScale, transform.maxScale);

@@ -4,6 +4,7 @@ import { campusSpots, categories, findCampusMapPoint } from "./data.js";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const DEMO_USER_ID = Number(import.meta.env.VITE_DEMO_USER_ID || 1);
 const USE_BACKEND = import.meta.env.VITE_USE_BACKEND === "true";
+const AUTH_STORAGE_KEY = "campusfind.auth";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -48,6 +49,44 @@ export function isBackendEnabled() {
   return USE_BACKEND;
 }
 
+export function getStoredAuth() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+
+    const session = JSON.parse(raw);
+    if (!session?.token || !session?.user) return null;
+
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredAuth(session) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+}
+
+export function clearStoredAuth() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+export async function loginWithApi({ email, password }) {
+  const { data } = await api.post("/auth/login", { email, password });
+  return normalizeSession(data);
+}
+
+export async function signupWithApi({ email, password, nickname, studentId }) {
+  const { data } = await api.post("/auth/signup", {
+    email,
+    password,
+    nickname,
+    student_id: studentId,
+  });
+
+  return normalizeSession(data);
+}
+
 export async function fetchItemsFromApi() {
   if (!USE_BACKEND) return [];
 
@@ -55,47 +94,68 @@ export async function fetchItemsFromApi() {
   return (data.items ?? []).map(toLocalItem);
 }
 
-export async function createItemOnApi(draft) {
+export async function createItemOnApi(draft, session) {
   if (!USE_BACKEND) return null;
 
-  const images = draft.photoFile ? await uploadImages([draft.photoFile]) : [];
-  const { data } = await api.post("/items", toCreatePayload(draft, images));
+  const images = draft.photoFile ? await uploadImages([draft.photoFile], session?.token) : [];
+  const { data } = await api.post(
+    "/items",
+    toCreatePayload(draft, images, session?.user?.id),
+    {
+      headers: authHeaders(session?.token),
+    },
+  );
   return toLocalItem({
     ...data.item,
     thumbnail_url: images[0]?.storage_url,
   });
 }
 
-export async function sendMessageOnApi(item, content) {
+export async function sendMessageOnApi(item, content, session) {
   if (!USE_BACKEND) return null;
 
   const itemId = item.remoteId ?? item.id;
-  const roomResponse = await api.post("/rooms", {
-    item_id: itemId,
-    sender_id: DEMO_USER_ID,
-  });
+  const senderId = session?.user?.id ?? DEMO_USER_ID;
+  const requestConfig = {
+    headers: authHeaders(session?.token),
+  };
+  const roomResponse = await api.post(
+    "/rooms",
+    {
+      item_id: itemId,
+      sender_id: senderId,
+    },
+    requestConfig,
+  );
 
   const roomId = roomResponse.data.room_id;
-  const { data } = await api.post(`/rooms/${roomId}/messages`, {
-    sender_id: DEMO_USER_ID,
-    content,
-  });
+  const { data } = await api.post(
+    `/rooms/${roomId}/messages`,
+    {
+      sender_id: senderId,
+      content,
+    },
+    requestConfig,
+  );
 
   return data.data;
 }
 
-async function uploadImages(files) {
+async function uploadImages(files, token) {
   const formData = new FormData();
   files.forEach((file) => formData.append("images", file));
 
   const { data } = await api.post("/images/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: {
+      "Content-Type": "multipart/form-data",
+      ...authHeaders(token),
+    },
   });
 
   return data.images ?? [];
 }
 
-function toCreatePayload(draft, images) {
+function toCreatePayload(draft, images, authorId) {
   const spot = findSpot(draft.place);
   const location = draft.location ?? {
     lat: spot?.lat,
@@ -103,7 +163,7 @@ function toCreatePayload(draft, images) {
   };
 
   return {
-    author_id: DEMO_USER_ID,
+    author_id: authorId ?? DEMO_USER_ID,
     category_id: categoryIdByLocalId[draft.category] ?? categoryIdByLocalId.etc,
     building_id: buildingIdBySpotId[spot?.id] ?? 1,
     type: draft.type === "found" ? "FOUND" : "LOST",
@@ -114,6 +174,30 @@ function toCreatePayload(draft, images) {
     longitude: location.lng,
     reward_amount: draft.type === "request" ? Number(draft.reward || 0) : 0,
     images,
+  };
+}
+
+function authHeaders(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function normalizeUser(user = {}) {
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    nickname: user.nickname ?? user.name ?? "캠퍼스 사용자",
+    studentId: user.student_id ?? user.studentId ?? "",
+  };
+}
+
+function normalizeSession(payload = {}) {
+  if (!payload.token) {
+    throw new Error("서버 응답에 JWT 토큰이 없습니다.");
+  }
+
+  return {
+    token: payload.token,
+    user: normalizeUser(payload.user),
   };
 }
 
