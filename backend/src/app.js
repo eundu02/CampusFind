@@ -14,10 +14,16 @@ const authMiddleware = require("./middlewares/auth");
 
 const app = express();
 
+app.use(cors({
+  origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+}));
+app.use(express.json());
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+app.use("/api/images", authMiddleware, imageRoutes);
 
 app.use("/api/items", (req, res, next) => {
   if (["POST", "PATCH", "DELETE"].includes(req.method)) {

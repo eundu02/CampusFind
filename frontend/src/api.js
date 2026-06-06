@@ -97,6 +97,17 @@ export async function verifySignupCodeWithApi({ email, code }) {
   return data;
 }
 
+export async function fetchRoomsFromApi(session) {
+  if (!USE_BACKEND || !session?.user?.id) return [];
+
+  const { data } = await api.get("/rooms", {
+    params: { user_id: session.user.id },
+    headers: authHeaders(session.token),
+  });
+
+  return (data.rooms ?? []).map((room) => toLocalMessage(room, session.user.id));
+}
+
 export async function fetchItemsFromApi() {
   if (!USE_BACKEND) return [];
 
@@ -208,6 +219,19 @@ function normalizeSession(payload = {}) {
   return {
     token: payload.token,
     user: normalizeUser(payload.user),
+  };
+}
+
+function toLocalMessage(room, userId) {
+  const isAuthor = Number(room.author_id) === Number(userId);
+  return {
+    id: room.id,
+    direction: isAuthor ? "received" : "sent",
+    itemId: room.item_id,
+    sender: room.other_nickname,
+    time: formatRelativeTime(room.last_message_at),
+    unread: Number(room.unread_count) > 0,
+    message: room.last_message || "(메시지 없음)",
   };
 }
 

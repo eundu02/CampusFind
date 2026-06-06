@@ -4,6 +4,7 @@ import {
   clearStoredAuth,
   createItemOnApi,
   fetchItemsFromApi,
+  fetchRoomsFromApi,
   getStoredAuth,
   isBackendEnabled,
   loginWithApi,
@@ -49,33 +50,6 @@ const headerTitles = {
 };
 
 const initialMessages = [
-  {
-    id: 101,
-    direction: "received",
-    itemId: 1,
-    sender: "도서관 근처 학생",
-    time: "5분 전",
-    unread: true,
-    message: "이어폰 케이스 사진을 보니 제 물건 같습니다. 오늘 5시 이후 도서관 1층에서 확인 가능할까요?",
-  },
-  {
-    id: 102,
-    direction: "received",
-    itemId: 2,
-    sender: "학생회관 안내데스크",
-    time: "18분 전",
-    unread: true,
-    message: "파란색 카드지갑과 비슷한 물건이 안내데스크에 맡겨졌습니다. 학생증 이름 일부를 확인해야 합니다.",
-  },
-  {
-    id: 103,
-    direction: "sent",
-    itemId: 3,
-    sender: "나",
-    time: "어제",
-    unread: false,
-    message: "학생증 주인 확인을 위해 학과와 이름 첫 글자를 알려주세요. 확인되면 자연과학관 앞에서 전달드릴게요.",
-  },
 ];
 
 const serviceRules = [
@@ -178,6 +152,24 @@ function App() {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!isBackendEnabled() || !authSession) return undefined;
+
+    fetchRoomsFromApi(authSession)
+      .then((remoteMessages) => {
+        if (!ignore) setMessages(remoteMessages);
+      })
+      .catch((error) => {
+        console.warn("쪽지 API를 불러오지 못했습니다.", error);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [authSession]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
