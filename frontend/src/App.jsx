@@ -222,12 +222,12 @@ function App() {
   }, [messages]);
 
   const myLostItems = useMemo(() => {
-    return items.filter((item) => item.type === "request");
-  }, [items]);
+    return items.filter((item) => item.type === "request" && item.authorId === Number(authUser?.id));
+  }, [items, authUser]);
 
   const myFoundItems = useMemo(() => {
-    return items.filter((item) => item.type === "found");
-  }, [items]);
+    return items.filter((item) => item.type === "found" && item.authorId === Number(authUser?.id));
+  }, [items, authUser]);
 
   async function addItem(draft) {
     const spot = campusSpots.find((item) => item.name === draft.place) ?? campusSpots[0];

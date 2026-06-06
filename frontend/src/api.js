@@ -332,6 +332,7 @@ function toLocalItem(item) {
   return {
     id: item.id,
     remoteId: item.id,
+    authorId: item.author_id ? Number(item.author_id) : null,
     type,
     category,
     title: item.title,
