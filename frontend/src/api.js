@@ -179,6 +179,34 @@ export async function fetchInboxMessagesFromApi(session) {
   return roomMessages.filter(Boolean);
 }
 
+export async function fetchRoomMessagesFromApi(roomId, session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return [];
+
+  const userId = Number(session.user.id);
+  const { data } = await api.get(`/rooms/${roomId}/messages`, {
+    headers: authHeaders(session.token),
+    params: { user_id: userId },
+  });
+
+  return (data.messages ?? []).map((message) => toConversationMessage(message, userId));
+}
+
+export async function sendRoomMessageOnApi(roomId, content, session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return null;
+
+  const userId = Number(session.user.id);
+  const { data } = await api.post(
+    `/rooms/${roomId}/messages`,
+    {
+      sender_id: userId,
+      content,
+    },
+    { headers: authHeaders(session.token) },
+  );
+
+  return toConversationMessage({ ...data.data, room_id: roomId }, userId);
+}
+
 export async function markRoomReadOnApi(roomId, session) {
   if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return null;
 
@@ -266,6 +294,21 @@ function toInboxMessage(room, lastMessage, userId) {
     time: formatRelativeTime(timeSource),
     unread: !isSent && unreadCount > 0,
     message: lastMessage?.content || room.last_message || "아직 메시지가 없습니다.",
+  };
+}
+
+function toConversationMessage(message, userId) {
+  const isSent = Number(message.sender_id) === userId;
+
+  return {
+    id: message.id,
+    roomId: message.room_id,
+    direction: isSent ? "sent" : "received",
+    sender: isSent ? "나" : "상대방",
+    time: formatRelativeTime(message.created_at),
+    unread: !isSent && message.is_read === false,
+    message: message.content || "",
+    createdAt: message.created_at,
   };
 }
 

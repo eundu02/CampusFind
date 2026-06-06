@@ -5,12 +5,14 @@ import {
   createItemOnApi,
   fetchInboxMessagesFromApi,
   fetchItemsFromApi,
+  fetchRoomMessagesFromApi,
   getStoredAuth,
   isBackendEnabled,
   loginWithApi,
   markRoomReadOnApi,
   saveStoredAuth,
   sendMessageOnApi,
+  sendRoomMessageOnApi,
   sendSignupCodeWithApi,
   signupWithApi,
   verifySignupCodeWithApi,
@@ -120,6 +122,10 @@ function App() {
   const [quickFilter, setQuickFilter] = useState("all");
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedMessage, setSelectedMessage] = useState(null);
+  const [selectedRoomMessages, setSelectedRoomMessages] = useState([]);
+  const [isRoomLoading, setIsRoomLoading] = useState(false);
+  const [isRoomSending, setIsRoomSending] = useState(false);
+  const [roomError, setRoomError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [sentMessages, setSentMessages] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -398,13 +404,68 @@ function App() {
       prev.map((item) => (item.id === message.id ? readMessage : item)),
     );
     setSelectedMessage(readMessage);
+    setSelectedRoomMessages([]);
+    setRoomError("");
 
-    if (!message.unread || !message.roomId || !isBackendEnabled()) return;
+    if (!message.roomId || !isBackendEnabled()) {
+      setSelectedRoomMessages([readMessage]);
+      return;
+    }
+
+    setIsRoomLoading(true);
 
     try {
-      await markRoomReadOnApi(message.roomId, authSession);
+      const roomMessages = await fetchRoomMessagesFromApi(message.roomId, authSession);
+      setSelectedRoomMessages(roomMessages);
+
+      if (message.unread) {
+        await markRoomReadOnApi(message.roomId, authSession);
+      }
     } catch (error) {
-      setInboxError(error.response?.data?.message || error.message);
+      setRoomError(error.response?.data?.message || error.message);
+      setSelectedRoomMessages([readMessage]);
+    } finally {
+      setIsRoomLoading(false);
+    }
+  }
+
+  async function handleSendRoomReply(roomId, content) {
+    if (!authSession?.user?.id || !authSession?.token) {
+      setAuthError("쪽지를 보내려면 먼저 로그인해 주세요.");
+      setAuthMode("login");
+      return;
+    }
+
+    if (!roomId || !isBackendEnabled()) return;
+
+    setIsRoomSending(true);
+    setRoomError("");
+
+    try {
+      const sentMessage = await sendRoomMessageOnApi(roomId, content, authSession);
+
+      if (sentMessage) {
+        setSelectedRoomMessages((prev) => [...prev, sentMessage]);
+        setSelectedMessage((prev) =>
+          prev
+            ? {
+                ...prev,
+                direction: "sent",
+                sender: "나",
+                time: sentMessage.time,
+                message: sentMessage.message,
+                unread: false,
+              }
+            : prev,
+        );
+      }
+
+      const remoteMessages = await fetchInboxMessagesFromApi(authSession);
+      setMessages(remoteMessages);
+    } catch (error) {
+      setRoomError(error.response?.data?.message || error.message);
+    } finally {
+      setIsRoomSending(false);
     }
   }
 
@@ -526,11 +587,22 @@ function App() {
           <MessageSheet
             message={selectedMessage}
             item={itemById.get(selectedMessage.itemId)}
-            onClose={() => setSelectedMessage(null)}
+            roomMessages={selectedRoomMessages}
+            isLoading={isRoomLoading}
+            isSending={isRoomSending}
+            error={roomError}
+            onClose={() => {
+              setSelectedMessage(null);
+              setSelectedRoomMessages([]);
+              setRoomError("");
+            }}
             onOpenItem={(item) => {
               setSelectedMessage(null);
+              setSelectedRoomMessages([]);
+              setRoomError("");
               setSelectedItem(item);
             }}
+            onSendReply={handleSendRoomReply}
           />
         )}
 
@@ -1743,7 +1815,29 @@ function DetailSheet({ item, sentCount, onClose, onSendMessage }) {
   );
 }
 
-function MessageSheet({ message, item, onClose, onOpenItem }) {
+function MessageSheet({
+  message,
+  item,
+  roomMessages,
+  isLoading,
+  isSending,
+  error,
+  onClose,
+  onOpenItem,
+  onSendReply,
+}) {
+  const [reply, setReply] = useState("");
+  const displayedMessages = roomMessages.length > 0 ? roomMessages : [message];
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const content = reply.trim();
+    if (!content || isSending) return;
+
+    onSendReply(message.roomId, content);
+    setReply("");
+  }
+
   return (
     <div className="sheet-backdrop">
       <article className="sheet message-sheet">
@@ -1759,14 +1853,28 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
 
         <div className="message-thread-head">
           <h2>{item?.title ?? message.itemTitle ?? "삭제된 게시글"}</h2>
-          <span>{message.time}</span>
+          <span>{message.time} · 채팅방</span>
         </div>
-        <p className="message-body">{message.message}</p>
+
+        <section className="conversation-list" aria-label="채팅방 대화 내역">
+          {isLoading && <div className="empty-state">대화 내역을 불러오는 중입니다.</div>}
+          {error && <div className="empty-state">채팅방 API 오류: {error}</div>}
+          {!isLoading &&
+            displayedMessages.map((entry) => (
+              <article key={entry.id} className={`chat-bubble ${entry.direction}`}>
+                <div className="chat-bubble-meta">
+                  <span>{entry.direction === "sent" ? "나" : entry.sender}</span>
+                  <time>{entry.time}</time>
+                </div>
+                <p>{entry.message}</p>
+              </article>
+            ))}
+        </section>
 
         <dl className="detail-grid">
           <div>
-            <dt>{message.direction === "received" ? "보낸 사람" : "받는 사람"}</dt>
-            <dd>{message.direction === "received" ? message.sender : "게시글 작성자"}</dd>
+            <dt>최근 발신자</dt>
+            <dd>{message.direction === "received" ? message.sender : "나"}</dd>
           </div>
           <div>
             <dt>관련 위치</dt>
@@ -1774,11 +1882,27 @@ function MessageSheet({ message, item, onClose, onOpenItem }) {
           </div>
         </dl>
 
-        {item && (
-          <button className="primary-action" type="button" onClick={() => onOpenItem(item)}>
-            관련 게시글 보기
-          </button>
-        )}
+        <div className="message-sheet-actions">
+          {item && (
+            <button className="secondary-action" type="button" onClick={() => onOpenItem(item)}>
+              관련 게시글 보기
+            </button>
+          )}
+          <form className="message-form" onSubmit={handleSubmit}>
+            <label>
+              <span>답장</span>
+              <textarea
+                value={reply}
+                onChange={(event) => setReply(event.target.value)}
+                placeholder="대화를 이어서 입력하세요."
+              />
+            </label>
+            <button className="primary-action" type="submit" disabled={isSending || !message.roomId}>
+              <SendIcon />
+              {isSending ? "보내는 중" : "답장 보내기"}
+            </button>
+          </form>
+        </div>
       </article>
     </div>
   );
