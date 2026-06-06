@@ -1,5 +1,5 @@
 import axios from "axios";
-import { campusSpots, categories } from "./data.js";
+import { campusSpots, categories, findCampusMapPoint } from "./data.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const DEMO_USER_ID = Number(import.meta.env.VITE_DEMO_USER_ID || 1);
@@ -238,10 +238,13 @@ function resolveLocalCategory(categoryName, categoryId) {
 
 function resolveLocation(item) {
   const spot = findSpot(item.building_name || item.location_detail);
+  const mapPoint = findCampusMapPoint(item.building_name || item.location_detail || "");
 
   return {
     x: spot?.x ?? 50,
     y: spot?.y ?? 50,
+    mapX: mapPoint?.x,
+    mapY: mapPoint?.y,
     lat: Number(item.latitude ?? spot?.lat ?? 35.8622),
     lng: Number(item.longitude ?? spot?.lng ?? 129.1951),
     source: "SERVER",
