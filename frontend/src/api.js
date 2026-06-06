@@ -87,6 +87,16 @@ export async function signupWithApi({ email, password, nickname, studentId }) {
   return normalizeSession(data);
 }
 
+export async function sendSignupCode(email) {
+  const { data } = await api.post("/auth/send-code", { email });
+  return data;
+}
+
+export async function verifySignupCode({ email, code }) {
+  const { data } = await api.post("/auth/verify-code", { email, code });
+  return data;
+}
+
 export async function fetchItemsFromApi() {
   if (!USE_BACKEND) return [];
 
@@ -139,6 +149,47 @@ export async function sendMessageOnApi(item, content, session) {
   );
 
   return data.data;
+}
+
+export async function fetchInboxMessagesFromApi(session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token) return [];
+
+  const userId = Number(session.user.id);
+  const requestConfig = {
+    headers: authHeaders(session.token),
+  };
+  const { data } = await api.get("/rooms", {
+    ...requestConfig,
+    params: { user_id: userId },
+  });
+  const rooms = data.rooms ?? [];
+
+  const roomMessages = await Promise.all(
+    rooms.map(async (room) => {
+      const response = await api.get(`/rooms/${room.id}/messages`, {
+        ...requestConfig,
+        params: { user_id: userId },
+      });
+      const messages = response.data.messages ?? [];
+      const lastMessage = messages.at(-1);
+
+      return toInboxMessage(room, lastMessage, userId);
+    }),
+  );
+
+  return roomMessages.filter(Boolean);
+}
+
+export async function markRoomReadOnApi(roomId, session) {
+  if (!USE_BACKEND || !roomId || !session?.user?.id || !session?.token) return null;
+
+  const { data } = await api.put(
+    `/rooms/${roomId}/read`,
+    { user_id: session.user.id },
+    { headers: authHeaders(session.token) },
+  );
+
+  return data;
 }
 
 async function uploadImages(files, token) {
@@ -198,6 +249,26 @@ function normalizeSession(payload = {}) {
   return {
     token: payload.token,
     user: normalizeUser(payload.user),
+  };
+}
+
+function toInboxMessage(room, lastMessage, userId) {
+  if (!room) return null;
+
+  const lastSenderId = Number(lastMessage?.sender_id);
+  const isSent = Number.isFinite(lastSenderId) && lastSenderId === Number(userId);
+  const unreadCount = Number(room.unread_count || 0);
+
+  return {
+    id: lastMessage ? `room-${room.id}-message-${lastMessage.id}` : `room-${room.id}`,
+    roomId: room.id,
+    itemId: room.item_id,
+    itemTitle: room.item_title,
+    direction: isSent ? "sent" : "received",
+    sender: isSent ? "나" : room.other_nickname || "상대방",
+    time: formatRelativeTime(lastMessage?.created_at || room.last_message_at || room.created_at),
+    unread: !isSent && unreadCount > 0,
+    message: lastMessage?.content || room.last_message || "아직 메시지가 없습니다.",
   };
 }
 

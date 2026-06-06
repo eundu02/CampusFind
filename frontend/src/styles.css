@@ -287,6 +287,26 @@ button {
   line-height: 1.4;
 }
 
+.auth-success,
+.auth-help {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.auth-success {
+  color: #00a889;
+}
+
+.auth-help {
+  color: #6b7684;
+}
+
+.otp-actions {
+  display: grid;
+}
+
 .auth-switch {
   min-height: 42px;
   border: 0;
@@ -307,6 +327,13 @@ button {
   background: #ffffff;
   font-size: 16px;
   font-weight: 900;
+}
+
+.primary-action:disabled,
+.secondary-action:disabled,
+.auth-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .content-view {
@@ -524,6 +551,31 @@ button {
   display: grid;
   align-content: start;
   gap: 14px;
+}
+
+.inbox-auth-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #edf0f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(25, 31, 40, 0.05);
+}
+
+.inbox-auth-card h2 {
+  margin: 0;
+  color: #191f28;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.inbox-auth-card p {
+  margin: 0;
+  color: #6b7684;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .inbox-summary {
@@ -976,6 +1028,8 @@ button {
   background: #d8ecf8;
 }
 
+.map-viewport,
+.map-transform-layer {
   position: absolute;
   inset: 0;
 }
