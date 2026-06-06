@@ -26,4 +26,4 @@ npm run dev
 - `POST /api/rooms`: 쪽지방 생성
 - `POST /api/rooms/:id/messages`: 쪽지 전송
 
-로컬에서 프론트와 백엔드를 같이 실행할 때는 Vite proxy가 `/api` 요청을 `http://localhost:5000`으로 넘깁니다.
+로컬에서 프론트와 백엔드를 같이 실행할 때는 Vite proxy가 `/api` 요청을 `http://localhost:3000`으로 넘깁니다.
