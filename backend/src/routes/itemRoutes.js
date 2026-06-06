@@ -89,7 +89,6 @@ router.post("/", async (req, res) => {
 
   try {
     const {
-      author_id,
       category_id,
       building_id,
       type,
@@ -102,8 +101,9 @@ router.post("/", async (req, res) => {
       images = [],
     } = req.body;
 
+    const author_id = req.user.id;
+
     if (
-      !author_id ||
       !category_id ||
       !building_id ||
       !type ||
@@ -225,6 +225,51 @@ router.post("/", async (req, res) => {
  *     summary: 게시글 목록 조회
  *     description: 게시글 목록을 최신순으로 조회합니다. 대표 이미지, 카테고리명, 건물명, 좌표를 함께 반환합니다.
  *     tags: [Items]
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [LOST, FOUND]
+ *           example: LOST
+ *         description: 분실물/습득물 유형
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [OPEN, MATCHED, RETURNED]
+ *           example: OPEN
+ *         description: 게시글 상태
+ *       - in: query
+ *         name: category_id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 2
+ *         description: 카테고리 ID
+ *       - in: query
+ *         name: building_id
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *         description: 건물 ID
+ *       - in: query
+ *         name: keyword
+ *         required: false
+ *         schema:
+ *           type: string
+ *           example: 에어팟
+ *         description: 제목 또는 설명 검색어
+ *       - in: query
+ *         name: has_reward
+ *         required: false
+ *         schema:
+ *           type: boolean
+ *           example: true
+ *         description: 사례금 입력 여부
  *     responses:
  *       200:
  *         description: 게시글 목록 조회 성공
@@ -233,6 +278,100 @@ router.post("/", async (req, res) => {
  */
 router.get("/", async (req, res) => {
   try {
+    const {
+      type,
+      status,
+      category_id,
+      building_id,
+      keyword,
+      has_reward,
+    } = req.query;
+
+    const allowedTypes = ["LOST", "FOUND"];
+    const allowedStatuses = ["OPEN", "MATCHED", "RETURNED"];
+    const whereClauses = [];
+    const values = [];
+
+    if (type !== undefined) {
+      if (!allowedTypes.includes(type)) {
+        return res.status(400).json({
+          message: "type은 LOST 또는 FOUND만 가능합니다.",
+        });
+      }
+
+      values.push(type);
+      whereClauses.push(`i.type = $${values.length}`);
+    }
+
+    if (status !== undefined) {
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({
+          message: "status는 OPEN, MATCHED, RETURNED만 가능합니다.",
+        });
+      }
+
+      values.push(status);
+      whereClauses.push(`i.status = $${values.length}`);
+    }
+
+    if (category_id !== undefined) {
+      const categoryId = Number(category_id);
+
+      if (!Number.isInteger(categoryId) || categoryId <= 0) {
+        return res.status(400).json({
+          message: "category_id는 1 이상의 정수여야 합니다.",
+        });
+      }
+
+      values.push(categoryId);
+      whereClauses.push(`i.category_id = $${values.length}`);
+    }
+
+    if (building_id !== undefined) {
+      const buildingId = Number(building_id);
+
+      if (!Number.isInteger(buildingId) || buildingId <= 0) {
+        return res.status(400).json({
+          message: "building_id는 1 이상의 정수여야 합니다.",
+        });
+      }
+
+      values.push(buildingId);
+      whereClauses.push(`i.building_id = $${values.length}`);
+    }
+
+    if (keyword !== undefined && String(keyword).trim()) {
+      const keywordValue = String(keyword).trim();
+
+      values.push(keywordValue);
+      const titleParamIndex = values.length;
+      values.push(keywordValue);
+      const descriptionParamIndex = values.length;
+
+      whereClauses.push(
+        `(i.title ILIKE '%' || $${titleParamIndex} || '%' OR i.description ILIKE '%' || $${descriptionParamIndex} || '%')`
+      );
+    }
+
+    if (has_reward !== undefined) {
+      const hasRewardValue = String(has_reward);
+
+      if (!["true", "false"].includes(hasRewardValue)) {
+        return res.status(400).json({
+          message: "has_reward는 true 또는 false만 가능합니다.",
+        });
+      }
+
+      if (hasRewardValue === "true") {
+        whereClauses.push("i.reward_amount > 0");
+      } else {
+        whereClauses.push("(i.reward_amount IS NULL OR i.reward_amount = 0)");
+      }
+    }
+
+    const whereSql =
+      whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
     const result = await pool.query(`
       SELECT
         i.id,
@@ -260,8 +399,9 @@ router.get("/", async (req, res) => {
       JOIN users u ON i.author_id = u.id
       JOIN categories c ON i.category_id = c.id
       JOIN buildings b ON i.building_id = b.id
+      ${whereSql}
       ORDER BY i.created_at DESC
-    `);
+    `, values);
 
     res.status(200).json({
       message: "게시글 목록 조회 성공",
@@ -482,7 +622,6 @@ router.patch("/:id", async (req, res) => {
   try {
     const itemId = Number(req.params.id);
     const {
-      author_id,
       category_id,
       building_id,
       type,
@@ -501,13 +640,7 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const authorId = Number(author_id);
-
-    if (!Number.isInteger(authorId) || authorId <= 0) {
-      return res.status(400).json({
-        message: "author_id는 1 이상의 정수여야 합니다.",
-      });
-    }
+    const authorId = Number(req.user.id);
 
     if (
       (latitude === undefined && longitude !== undefined) ||
@@ -689,17 +822,11 @@ router.delete("/:id", async (req, res) => {
 
   try {
     const itemId = Number(req.params.id);
-    const authorId = Number(req.body.author_id);
+    const authorId = Number(req.user.id);
 
     if (!Number.isInteger(itemId) || itemId <= 0) {
       return res.status(400).json({
         message: "id는 1 이상의 정수여야 합니다.",
-      });
-    }
-
-    if (!Number.isInteger(authorId) || authorId <= 0) {
-      return res.status(400).json({
-        message: "author_id는 1 이상의 정수여야 합니다.",
       });
     }
 
