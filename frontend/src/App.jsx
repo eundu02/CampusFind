@@ -242,6 +242,7 @@ function App() {
       place: draft.place,
       time: "방금",
       imageLabel: draft.type === "found" ? draft.imageLabel || draft.photoName || "첨부 사진" : null,
+      imageUrl: draft.type === "found" && draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
       color: draft.color,
       location,
       reward: draft.type === "request" ? Number(draft.reward || 0) : 0,
@@ -959,7 +960,11 @@ function ItemVisual({ item }) {
 
   return (
     <div className="item-visual" style={{ "--item-color": item.color }}>
-      <span>{item.imageLabel?.slice(0, 4)}</span>
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt={item.title} />
+      ) : (
+        <span>{item.imageLabel?.slice(0, 4)}</span>
+      )}
     </div>
   );
 }

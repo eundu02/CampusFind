@@ -452,6 +452,13 @@ button {
   word-break: keep-all;
 }
 
+.item-visual img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .map-thumb {
   color: #3182f6;
   background: linear-gradient(135deg, #e8f3ff, #f5f8fb);

@@ -288,6 +288,7 @@ function toLocalItem(item) {
     place: item.location_detail || item.building_name || "위치 미확인",
     time: formatRelativeTime(item.created_at),
     imageLabel: item.thumbnail_url ? label : label,
+    imageUrl: item.thumbnail_url ?? null,
     color: type === "found" ? colorForCategory(category) : "#2563eb",
     location,
     reward: Number(item.reward_amount || 0),
