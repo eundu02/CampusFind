@@ -375,6 +375,7 @@ router.get("/", async (req, res) => {
     const result = await pool.query(`
       SELECT
         i.id,
+        i.author_id,
         i.type,
         i.title,
         i.description,

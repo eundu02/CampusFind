@@ -105,6 +105,17 @@ const emptyDraft = {
   status: "idle",
 };
 
+const creatableSpotIds = new Set([
+  "library",
+  "student-hall",
+  "science",
+  "wonhyo",
+  "jinheung",
+  "munmu",
+  "ground",
+  "centennial",
+]);
+
 const kakaoMapAppKey = import.meta.env.VITE_KAKAO_MAP_APP_KEY?.trim() ?? "";
 const kakaoMapCenter = { lat: 35.86255, lng: 129.1951 };
 let kakaoMapsPromise = null;
@@ -115,7 +126,7 @@ function App() {
   const [authError, setAuthError] = useState("");
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(() => (isBackendEnabled() ? [] : initialItems));
   const [query, setQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -146,12 +157,10 @@ function App() {
 
     fetchItemsFromApi()
       .then((remoteItems) => {
-        if (!ignore && remoteItems.length > 0) {
-          setItems(remoteItems);
-        }
+        if (!ignore) setItems(remoteItems);
       })
       .catch((error) => {
-        console.warn("게시글 API를 불러오지 못해 mock 데이터를 유지합니다.", error);
+        console.warn("게시글 API를 불러오지 못했습니다.", error);
       });
 
     return () => {
@@ -221,17 +230,23 @@ function App() {
     return messages.filter((message) => message.direction === "received" && message.unread).length;
   }, [messages]);
 
+  const currentUserId = Number(authUser?.id);
+
   const myLostItems = useMemo(() => {
-    return items.filter((item) => item.type === "request" && item.authorId === Number(authUser?.id));
-  }, [items, authUser]);
+    return items.filter(
+      (item) => item.type === "request" && Number.isInteger(currentUserId) && Number(item.authorId) === currentUserId,
+    );
+  }, [items, currentUserId]);
 
   const myFoundItems = useMemo(() => {
-    return items.filter((item) => item.type === "found" && item.authorId === Number(authUser?.id));
-  }, [items, authUser]);
+    return items.filter(
+      (item) => item.type === "found" && Number.isInteger(currentUserId) && Number(item.authorId) === currentUserId,
+    );
+  }, [items, currentUserId]);
 
   async function addItem(draft) {
     const spot = campusSpots.find((item) => item.name === draft.place) ?? campusSpots[0];
-    const location = draft.location ?? {
+    const location = {
       x: spot.x,
       y: spot.y,
       lat: spot.lat,
@@ -246,6 +261,7 @@ function App() {
       title: draft.title,
       description: draft.description,
       place: draft.place,
+      authorId: currentUserId,
       time: "방금",
       imageLabel: draft.type === "found" ? draft.imageLabel || draft.photoName || "첨부 사진" : null,
       imageUrl: draft.type === "found" && draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
@@ -259,7 +275,8 @@ function App() {
         const savedItem = await createItemOnApi(draft, authSession);
         if (!savedItem) return;
 
-        setItems((prev) => [savedItem, ...prev]);
+        const remoteItems = await fetchItemsFromApi().catch(() => []);
+        setItems((prev) => (remoteItems.length > 0 ? remoteItems : [savedItem, ...prev]));
         setSelectedItem(savedItem);
         setIsCreateOpen(false);
       } catch (error) {
@@ -2040,7 +2057,7 @@ function CreateSheet({ onClose, onSubmit }) {
         <label className="field">
           <span>{draft.type === "found" ? "발견 위치" : "예상 분실 위치"}</span>
           <select value={draft.place} onChange={(event) => handlePlaceChange(event.target.value)}>
-            {campusSpots.map((spot) => (
+            {campusSpots.filter((spot) => creatableSpotIds.has(spot.id)).map((spot) => (
               <option key={spot.id} value={spot.name}>
                 {spot.name}
               </option>
