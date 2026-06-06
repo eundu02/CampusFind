@@ -28,7 +28,7 @@ VITE_DEMO_USER_ID=1
 VITE_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 ```
 
-개발 서버는 `/api` 요청을 `http://localhost:5000`으로 proxy합니다.
+개발 서버는 `/api` 요청을 `http://localhost:3000`으로 proxy합니다.
 
 로그인과 회원가입은 `/api/auth/login`, `/api/auth/signup`을 호출합니다. 성공 시 JWT를 localStorage에 저장하고 게시글 등록, 이미지 업로드, 쪽지 API 호출에 `Authorization: Bearer <token>` 헤더를 붙입니다.
 
