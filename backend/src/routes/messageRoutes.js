@@ -49,9 +49,10 @@ const router = express.Router();
  */
 router.post("/", async (req, res) => {
   try {
-    const { item_id, sender_id } = req.body;
+    const { item_id } = req.body ?? {};
+    const senderId = Number(req.user?.id);
 
-    if (!item_id || !sender_id) {
+    if (!item_id || !Number.isInteger(senderId)) {
       return res.status(400).json({ message: "필수 입력값이 누락되었습니다." });
     }
 
@@ -66,13 +67,13 @@ router.post("/", async (req, res) => {
 
     const item = itemResult.rows[0];
 
-    if (item.author_id === parseInt(sender_id)) {
+    if (Number(item.author_id) === senderId) {
       return res.status(403).json({ message: "본인 게시글에는 쪽지를 보낼 수 없습니다." });
     }
 
     const existingRoom = await pool.query(
       "SELECT id FROM message_rooms WHERE item_id = $1 AND contact_id = $2",
-      [item_id, sender_id]
+      [item_id, senderId]
     );
 
     if (existingRoom.rows.length > 0) {
@@ -87,7 +88,7 @@ router.post("/", async (req, res) => {
       `INSERT INTO message_rooms (item_id, author_id, contact_id)
        VALUES ($1, $2, $3)
        RETURNING id`,
-      [item_id, item.author_id, sender_id]
+      [item_id, item.author_id, senderId]
     );
 
     res.status(201).json({
@@ -361,9 +362,10 @@ router.post("/:id/messages", async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { sender_id, content } = req.body;
+    const { content } = req.body ?? {};
+    const senderId = Number(req.user?.id);
 
-    if (!sender_id || !content) {
+    if (!Number.isInteger(senderId) || !content) {
       return res.status(400).json({ message: "필수 입력값이 누락되었습니다." });
     }
 
@@ -377,7 +379,7 @@ router.post("/:id/messages", async (req, res) => {
     }
 
     const room = roomResult.rows[0];
-    if (room.author_id !== parseInt(sender_id) && room.contact_id !== parseInt(sender_id)) {
+    if (Number(room.author_id) !== senderId && Number(room.contact_id) !== senderId) {
       return res.status(403).json({ message: "채팅방 접근 권한이 없습니다." });
     }
 
@@ -387,7 +389,7 @@ router.post("/:id/messages", async (req, res) => {
       `INSERT INTO messages (room_id, sender_id, content)
        VALUES ($1, $2, $3)
        RETURNING id, sender_id, content, created_at`,
-      [id, sender_id, content]
+      [id, senderId, content]
     );
 
     await client.query(
