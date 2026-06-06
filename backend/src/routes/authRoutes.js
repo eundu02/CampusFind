@@ -2,7 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
-const { sendVerificationCode, verifyCode } = require("../config/emailService");
+const { sendVerificationCode, verifyCode, consumeVerifiedEmail } = require("../config/emailService");
 
 const router = express.Router();
 
@@ -147,6 +147,10 @@ router.post("/signup", async (req, res) => {
     );
     if (existing.rows.length > 0) {
       return res.status(400).json({ message: "이미 사용 중인 이메일, 학번, 또는 닉네임입니다." });
+    }
+
+    if (!consumeVerifiedEmail(email)) {
+      return res.status(400).json({ message: "이메일 인증을 먼저 완료해주세요." });
     }
 
     const password_hash = await bcrypt.hash(password, 10);

@@ -11,6 +11,8 @@ const transporter = nodemailer.createTransport({
 
 // 인증코드 메모리 저장소 { email: { code, expiresAt } }
 const verificationCodes = new Map();
+const verifiedEmails = new Map();
+const VERIFIED_EMAIL_TTL_MS = 10 * 60 * 1000;
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -49,7 +51,26 @@ function verifyCode(email, inputCode) {
     return { valid: false, reason: "인증코드가 일치하지 않습니다." };
   }
   verificationCodes.delete(email);
+  verifiedEmails.set(email, Date.now() + VERIFIED_EMAIL_TTL_MS);
   return { valid: true };
 }
 
-module.exports = { sendVerificationCode, verifyCode };
+function isEmailVerified(email) {
+  const expiresAt = verifiedEmails.get(email);
+  if (!expiresAt) return false;
+
+  if (Date.now() > expiresAt) {
+    verifiedEmails.delete(email);
+    return false;
+  }
+
+  return true;
+}
+
+function consumeVerifiedEmail(email) {
+  if (!isEmailVerified(email)) return false;
+  verifiedEmails.delete(email);
+  return true;
+}
+
+module.exports = { sendVerificationCode, verifyCode, isEmailVerified, consumeVerifiedEmail };
