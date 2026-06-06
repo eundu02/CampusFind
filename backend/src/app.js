@@ -9,6 +9,8 @@ const imageRoutes = require("./routes/imageRoutes");
 const itemRoutes = require("./routes/itemRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const buildingRoutes = require("./routes/buildingRoutes");
+const authRoutes = require("./routes/authRoutes");
+const authMiddleware = require("./middlewares/auth");
 
 const app = express();
 
@@ -19,10 +21,18 @@ app.use(express.json());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use("/api/images", imageRoutes);
-app.use("/api/items", itemRoutes);
-app.use("/api/rooms", messageRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+
+app.use("/api/items", (req, res, next) => {
+  if (["POST", "PATCH", "DELETE"].includes(req.method)) {
+    return authMiddleware(req, res, next);
+  }
+  next();
+}, itemRoutes);
+
+app.use("/api/images", authMiddleware, imageRoutes);
+app.use("/api/rooms", authMiddleware, messageRoutes);
 
 app.get("/", async (req, res) => {
   try {
