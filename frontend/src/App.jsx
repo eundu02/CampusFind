@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import exifr from "exifr";
-import { createItemOnApi, fetchItemsFromApi, isBackendEnabled, sendMessageOnApi } from "./api.js";
+import {
+  clearStoredAuth,
+  createItemOnApi,
+  fetchItemsFromApi,
+  getStoredAuth,
+  isBackendEnabled,
+  loginWithApi,
+  saveStoredAuth,
+  sendMessageOnApi,
+  signupWithApi,
+} from "./api.js";
 import { campusSpots, categories, initialItems } from "./data.js";
 import {
   BackIcon,
@@ -119,7 +129,15 @@ const emptyDraft = {
   status: "idle",
 };
 
+const kakaoMapAppKey = import.meta.env.VITE_KAKAO_MAP_APP_KEY?.trim() ?? "";
+const kakaoMapCenter = { lat: 35.86255, lng: 129.1951 };
+let kakaoMapsPromise = null;
+
 function App() {
+  const [authSession, setAuthSession] = useState(() => getStoredAuth());
+  const [authMode, setAuthMode] = useState(null);
+  const [authError, setAuthError] = useState("");
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("list");
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
@@ -132,10 +150,12 @@ function App() {
   const [sentMessages, setSentMessages] = useState([]);
   const [messages, setMessages] = useState(initialMessages);
   const [profile, setProfile] = useState({
-    nickname: "동국 분실물 매니저",
+    nickname: authSession?.user?.nickname ?? "동국 분실물 매니저",
     avatarUrl: "",
     avatarName: "",
   });
+
+  const authUser = authSession?.user ?? null;
 
   useEffect(() => {
     let ignore = false;
@@ -226,7 +246,7 @@ function App() {
     if (!isBackendEnabled()) return;
 
     try {
-      const savedItem = await createItemOnApi(draft);
+      const savedItem = await createItemOnApi(draft, authSession);
       if (!savedItem) return;
 
       setItems((prev) => prev.map((entry) => (entry.id === item.id ? savedItem : entry)));
@@ -237,6 +257,12 @@ function App() {
   }
 
   async function sendMessage(item, message) {
+    if (!authSession?.user?.id || !authSession?.token) {
+      setAuthError("쪽지를 보내려면 먼저 로그인해 주세요.");
+      setAuthMode("login");
+      return;
+    }
+
     const sentMessage = {
       id: Date.now(),
       direction: "sent",
@@ -253,9 +279,15 @@ function App() {
     if (!isBackendEnabled()) return;
 
     try {
-      await sendMessageOnApi(item, message);
+      await sendMessageOnApi(item, message, authSession);
     } catch (error) {
-      console.warn("쪽지 API 전송에 실패해 로컬 전송 상태를 유지합니다.", error);
+      setMessages((prev) =>
+        prev.map((entry) =>
+          entry.id === sentMessage.id
+            ? { ...entry, message: `${entry.message}\n\n(API 전송 실패: ${error.message})` }
+            : entry,
+        ),
+      );
     }
   }
 
@@ -279,6 +311,63 @@ function App() {
     setActiveTab("list");
   }
 
+  function applyAuthSession(session) {
+    setAuthSession(session);
+    saveStoredAuth(session);
+    setProfile((prev) => ({
+      ...prev,
+      nickname: session.user.nickname || prev.nickname,
+    }));
+    setAuthError("");
+    setAuthMode(null);
+  }
+
+  async function handleLogin(credentials) {
+    setIsAuthSubmitting(true);
+    setAuthError("");
+
+    try {
+      const session = await loginWithApi(credentials);
+      applyAuthSession(session);
+    } catch (error) {
+      setAuthError(error.response?.data?.message || error.message);
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  async function handleSignup(form) {
+    setIsAuthSubmitting(true);
+    setAuthError("");
+
+    try {
+      const session = await signupWithApi(form);
+      applyAuthSession(session);
+    } catch (error) {
+      setAuthError(error.response?.data?.message || error.message);
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  function requireAuth(nextMode = "login") {
+    if (authSession?.token) return true;
+
+    setAuthError("로그인이 필요한 기능입니다.");
+    setAuthMode(nextMode);
+    return false;
+  }
+
+  function logout() {
+    clearStoredAuth();
+    setAuthSession(null);
+    setSelectedItem(null);
+    setSelectedMessage(null);
+    setIsCreateOpen(false);
+    setAuthError("");
+    setActiveTab("profile");
+  }
+
   return (
     <div className="app-shell">
       <main className="phone-frame">
@@ -293,7 +382,9 @@ function App() {
               setActiveTab("list");
               setIsSearchOpen((prev) => !prev);
             }}
-            onCreate={() => setIsCreateOpen(true)}
+            onCreate={() => {
+              if (requireAuth()) setIsCreateOpen(true);
+            }}
             onProfile={() => setActiveTab("profile")}
             onBack={handleBack}
           />
@@ -336,11 +427,21 @@ function App() {
 
           {activeTab === "profile" && (
             <ProfileView
+              authUser={authUser}
               profile={profile}
               foundCount={myFoundItems.length}
               lostCount={myLostItems.length}
               onAvatarChange={handleAvatarChange}
               onNicknameChange={(nickname) => setProfile((prev) => ({ ...prev, nickname }))}
+              onLogin={() => {
+                setAuthError("");
+                setAuthMode("login");
+              }}
+              onSignup={() => {
+                setAuthError("");
+                setAuthMode("signup");
+              }}
+              onLogout={logout}
               onNavigate={setActiveTab}
             />
           )}
@@ -397,8 +498,198 @@ function App() {
             onSubmit={addItem}
           />
         )}
+
+        {authMode && (
+          <AuthDialog
+            mode={authMode}
+            error={authError}
+            isSubmitting={isAuthSubmitting}
+            onClose={() => {
+              setAuthMode(null);
+              setAuthError("");
+            }}
+            onModeChange={(mode) => {
+              setAuthError("");
+              setAuthMode(mode);
+            }}
+            onLogin={handleLogin}
+            onSignup={handleSignup}
+          />
+        )}
       </main>
     </div>
+  );
+}
+
+function AuthDialog({ mode, error, isSubmitting, onClose, onModeChange, onLogin, onSignup }) {
+  const title = mode === "login" ? "로그인" : "회원가입";
+
+  return (
+    <div className="auth-backdrop">
+      <section className="auth-card" aria-label={title}>
+        <div className="sheet-header">
+          <div>
+            <p className="eyebrow">CampusFind 계정</p>
+            <h2>{title}</h2>
+          </div>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="닫기">
+            <CloseIcon />
+          </button>
+        </div>
+
+        {mode === "login" ? (
+          <LoginForm
+            error={error}
+            isSubmitting={isSubmitting}
+            onSubmit={onLogin}
+            onShowSignup={() => onModeChange("signup")}
+          />
+        ) : (
+          <SignupForm
+            error={error}
+            isSubmitting={isSubmitting}
+            onSubmit={onSignup}
+            onShowLogin={() => onModeChange("login")}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function LoginForm({ error, isSubmitting, onSubmit, onShowSignup }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onSubmit({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <label className="field">
+        <span>학교 이메일</span>
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="student@dongguk.ac.kr"
+          autoComplete="email"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>비밀번호</span>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="비밀번호"
+          autoComplete="current-password"
+          required
+        />
+      </label>
+      {error && <p className="auth-error">{error}</p>}
+      <button className="primary-action" type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "로그인 중" : "로그인"}
+      </button>
+      <button className="auth-switch" type="button" onClick={onShowSignup}>
+        계정이 없으면 회원가입
+      </button>
+    </form>
+  );
+}
+
+function SignupForm({ error, isSubmitting, onSubmit, onShowLogin }) {
+  const [email, setEmail] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordMismatch = Boolean(confirmPassword) && password !== confirmPassword;
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    if (passwordMismatch) return;
+
+    onSubmit({
+      email: email.trim().toLowerCase(),
+      studentId: studentId.trim(),
+      nickname: nickname.trim(),
+      password,
+    });
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <label className="field">
+        <span>학교 이메일</span>
+        <input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="student@dongguk.ac.kr"
+          autoComplete="email"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>학번</span>
+        <input
+          value={studentId}
+          onChange={(event) => setStudentId(event.target.value)}
+          placeholder="학번"
+          autoComplete="off"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>닉네임</span>
+        <input
+          value={nickname}
+          onChange={(event) => setNickname(event.target.value)}
+          placeholder="닉네임"
+          autoComplete="nickname"
+          required
+        />
+      </label>
+      <label className="field">
+        <span>비밀번호</span>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="8자 이상"
+          autoComplete="new-password"
+          minLength={8}
+          required
+        />
+      </label>
+      <label className="field">
+        <span>비밀번호 확인</span>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="비밀번호 재입력"
+          autoComplete="new-password"
+          required
+        />
+      </label>
+      {passwordMismatch && <p className="auth-error">비밀번호가 일치하지 않습니다.</p>}
+      {error && <p className="auth-error">{error}</p>}
+      <button className="primary-action" type="submit" disabled={isSubmitting || passwordMismatch}>
+        {isSubmitting ? "가입 중" : "회원가입"}
+      </button>
+      <button className="auth-switch" type="button" onClick={onShowLogin}>
+        이미 계정이 있으면 로그인
+      </button>
+    </form>
   );
 }
 
@@ -651,7 +942,39 @@ function MessageListSection({ title, messages, itemById, emptyText, onSelectMess
   );
 }
 
-function ProfileView({ profile, foundCount, lostCount, onAvatarChange, onNicknameChange, onNavigate }) {
+function ProfileView({
+  authUser,
+  profile,
+  foundCount,
+  lostCount,
+  onAvatarChange,
+  onNicknameChange,
+  onLogin,
+  onSignup,
+  onLogout,
+  onNavigate,
+}) {
+  if (!authUser) {
+    return (
+      <div className="content-view profile-view">
+        <section className="profile-card profile-auth-card">
+          <div className="profile-auth-copy">
+            <h2>로그인이 필요합니다</h2>
+            <p>JWT 로그인 후 게시글 등록, 쪽지 전송, 내 리스트 확인 기능을 사용할 수 있습니다.</p>
+          </div>
+          <div className="profile-auth-actions">
+            <button className="primary-action" type="button" onClick={onLogin}>
+              로그인
+            </button>
+            <button className="secondary-action" type="button" onClick={onSignup}>
+              회원가입
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="content-view profile-view">
       <section className="profile-card">
@@ -676,6 +999,10 @@ function ProfileView({ profile, foundCount, lostCount, onAvatarChange, onNicknam
             placeholder="닉네임을 입력하세요"
           />
         </label>
+        <div className="profile-account-row">
+          <span>{authUser.email}</span>
+          {authUser.studentId && <span>{authUser.studentId}</span>}
+        </div>
       </section>
 
       <section className="profile-menu" aria-label="마이페이지 메뉴">
@@ -701,6 +1028,10 @@ function ProfileView({ profile, foundCount, lostCount, onAvatarChange, onNicknam
           <em>필독</em>
         </button>
       </section>
+
+      <button className="logout-button" type="button" onClick={onLogout}>
+        로그아웃
+      </button>
     </div>
   );
 }
@@ -744,6 +1075,21 @@ function RulesView() {
 }
 
 function OfficialCampusMap({ items, onSelectItem }) {
+  if (!kakaoMapAppKey) {
+    return (
+      <>
+        <StaticCampusMap items={items} onSelectItem={onSelectItem} />
+        <div className="map-integration-notice">
+          카카오맵 앱키가 없어 정적 지도를 표시 중입니다.
+        </div>
+      </>
+    );
+  }
+
+  return <KakaoCampusMap items={items} onSelectItem={onSelectItem} appKey={kakaoMapAppKey} />;
+}
+
+function StaticCampusMap({ items, onSelectItem }) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const viewportRef = useRef(null);
   const transformRef = useRef(transform);
@@ -948,6 +1294,168 @@ function OfficialCampusMap({ items, onSelectItem }) {
       <div className="map-source">캠퍼스 지도</div>
     </>
   );
+}
+
+function KakaoCampusMap({ items, onSelectItem, appKey }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const overlayRefs = useRef([]);
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setStatus("loading");
+    setError("");
+
+    loadKakaoMaps(appKey)
+      .then((kakao) => {
+        if (cancelled || !containerRef.current) return;
+
+        const center = new kakao.maps.LatLng(kakaoMapCenter.lat, kakaoMapCenter.lng);
+        const map = new kakao.maps.Map(containerRef.current, {
+          center,
+          level: 4,
+        });
+
+        if (typeof map.setMinLevel === "function") map.setMinLevel(2);
+        if (typeof map.setMaxLevel === "function") map.setMaxLevel(6);
+
+        map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
+        mapRef.current = map;
+        setStatus("ready");
+      })
+      .catch((loadError) => {
+        if (cancelled) return;
+        setError(loadError.message);
+        setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+      overlayRefs.current.forEach((overlay) => overlay.setMap(null));
+      overlayRefs.current = [];
+      mapRef.current = null;
+    };
+  }, [appKey]);
+
+  useEffect(() => {
+    if (status !== "ready" || !mapRef.current || !window.kakao?.maps) return undefined;
+
+    const kakao = window.kakao;
+    const map = mapRef.current;
+    overlayRefs.current.forEach((overlay) => overlay.setMap(null));
+    overlayRefs.current = [];
+
+    const visibleItems = items.filter((item) => {
+      const lat = Number(item.location?.lat);
+      const lng = Number(item.location?.lng);
+      return Number.isFinite(lat) && Number.isFinite(lng);
+    });
+
+    visibleItems.forEach((item) => {
+      const position = new kakao.maps.LatLng(Number(item.location.lat), Number(item.location.lng));
+      const pin = document.createElement("button");
+      pin.type = "button";
+      pin.className = `kakao-map-pin ${item.type}`;
+      pin.setAttribute("aria-label", `${item.title} 위치`);
+      pin.innerHTML = `<span class="pin-symbol">${item.type === "found" ? "!" : "?"}</span>`;
+      pin.addEventListener("click", (event) => {
+        event.preventDefault();
+        onSelectItem(item);
+      });
+
+      const overlay = new kakao.maps.CustomOverlay({
+        position,
+        content: pin,
+        yAnchor: 1,
+        zIndex: 10,
+      });
+
+      overlay.setMap(map);
+      overlayRefs.current.push(overlay);
+    });
+
+    if (visibleItems.length === 1) {
+      const item = visibleItems[0];
+      map.setCenter(new kakao.maps.LatLng(Number(item.location.lat), Number(item.location.lng)));
+      map.setLevel(3);
+    } else if (visibleItems.length > 1) {
+      const bounds = new kakao.maps.LatLngBounds();
+      visibleItems.forEach((item) => {
+        bounds.extend(new kakao.maps.LatLng(Number(item.location.lat), Number(item.location.lng)));
+      });
+      map.setBounds(bounds);
+    }
+
+    return () => {
+      overlayRefs.current.forEach((overlay) => overlay.setMap(null));
+      overlayRefs.current = [];
+    };
+  }, [items, onSelectItem, status]);
+
+  if (status === "error") {
+    return (
+      <>
+        <StaticCampusMap items={items} onSelectItem={onSelectItem} />
+        <div className="map-integration-notice">
+          카카오맵 로드 실패: {error}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div ref={containerRef} className="kakao-map-viewport" aria-label="카카오맵 캠퍼스 지도" />
+      {status === "loading" && <div className="map-loading">카카오맵 불러오는 중</div>}
+      <div className="map-source">Kakao Maps</div>
+    </>
+  );
+}
+
+function loadKakaoMaps(appKey) {
+  if (!appKey) {
+    return Promise.reject(new Error("VITE_KAKAO_MAP_APP_KEY가 설정되지 않았습니다."));
+  }
+
+  if (window.kakao?.maps) {
+    return new Promise((resolve) => {
+      window.kakao.maps.load(() => resolve(window.kakao));
+    });
+  }
+
+  if (kakaoMapsPromise) return kakaoMapsPromise;
+
+  kakaoMapsPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector("script[data-kakao-map-sdk]");
+
+    function handleLoad() {
+      if (!window.kakao?.maps) {
+        reject(new Error("Kakao Maps SDK 객체를 찾을 수 없습니다."));
+        return;
+      }
+
+      window.kakao.maps.load(() => resolve(window.kakao));
+    }
+
+    if (existingScript) {
+      existingScript.addEventListener("load", handleLoad, { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Kakao Maps SDK 로드 실패")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.dataset.kakaoMapSdk = "true";
+    script.async = true;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
+    script.addEventListener("load", handleLoad, { once: true });
+    script.addEventListener("error", () => reject(new Error("Kakao Maps SDK 로드 실패")), { once: true });
+    document.head.appendChild(script);
+  });
+
+  return kakaoMapsPromise;
 }
 
 function toCampusPoint({ lat, lng }) {
