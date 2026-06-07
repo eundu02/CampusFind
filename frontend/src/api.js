@@ -1,5 +1,5 @@
 import axios from "axios";
-import { campusSpots, categories } from "./data.js";
+import { campusMapPoints, campusSpots, categories } from "./data.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const DEMO_USER_ID = Number(import.meta.env.VITE_DEMO_USER_ID || 1);
@@ -136,6 +136,35 @@ export async function createItemOnApi(draft, session) {
   });
 }
 
+export async function deleteItemOnApi(item, session) {
+  if (!USE_BACKEND) return null;
+
+  const itemId = item.remoteId ?? item.id;
+  const { data } = await api.delete(`/items/${itemId}`, {
+    headers: authHeaders(session?.token),
+  });
+
+  return data;
+}
+
+export async function updateItemOnApi(item, draft, session) {
+  if (!USE_BACKEND) return null;
+
+  const itemId = item.remoteId ?? item.id;
+  const { data } = await api.patch(
+    `/items/${itemId}`,
+    toUpdatePayload(draft),
+    {
+      headers: authHeaders(session?.token),
+    },
+  );
+
+  return toLocalItem({
+    ...data.item,
+    thumbnail_url: item.imageUrl,
+  });
+}
+
 export async function sendMessageOnApi(item, content, session) {
   if (!USE_BACKEND) return null;
 
@@ -250,6 +279,10 @@ async function uploadImages(files, token) {
 
 function toCreatePayload(draft, images, authorId) {
   const spot = findSpot(draft.place);
+  const location = draft.location ?? {
+    lat: spot?.lat,
+    lng: spot?.lng,
+  };
 
   return {
     author_id: authorId ?? DEMO_USER_ID,
@@ -259,10 +292,30 @@ function toCreatePayload(draft, images, authorId) {
     title: draft.title.trim(),
     description: draft.description.trim(),
     location_detail: draft.place,
-    latitude: spot?.lat,
-    longitude: spot?.lng,
+    latitude: location.lat,
+    longitude: location.lng,
     reward_amount: draft.type === "request" ? Number(draft.reward || 0) : 0,
     images,
+  };
+}
+
+function toUpdatePayload(draft) {
+  const spot = findSpot(draft.place);
+  const location = draft.location ?? {
+    lat: spot?.lat,
+    lng: spot?.lng,
+  };
+
+  return {
+    category_id: categoryIdByLocalId[draft.category] ?? categoryIdByLocalId.etc,
+    building_id: buildingIdBySpotId[spot?.id] ?? 1,
+    type: draft.type === "found" ? "FOUND" : "LOST",
+    title: draft.title.trim(),
+    description: draft.description.trim(),
+    location_detail: draft.place,
+    latitude: location.lat,
+    longitude: location.lng,
+    reward_amount: draft.type === "request" ? Number(draft.reward || 0) : 0,
   };
 }
 
@@ -361,10 +414,14 @@ function resolveLocalCategory(categoryName, categoryId) {
 
 function resolveLocation(item) {
   const spot = findSpot(item.building_name || item.location_detail);
+  const exactPlace = (item.building_name || item.location_detail || "").trim();
+  const mapPoint = campusMapPoints.find((point) => point.name === exactPlace);
 
   return {
     x: spot?.x ?? 50,
     y: spot?.y ?? 50,
+    mapX: mapPoint?.x,
+    mapY: mapPoint?.y,
     lat: Number(item.latitude ?? spot?.lat ?? 35.8622),
     lng: Number(item.longitude ?? spot?.lng ?? 129.1951),
     source: "SERVER",

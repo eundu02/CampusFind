@@ -136,6 +136,11 @@ button {
   background: #e8f3ff;
 }
 
+.icon-button.danger {
+  color: #f04438;
+  background: #fff0ec;
+}
+
 .header-actions {
   display: inline-flex;
   gap: 8px;
@@ -333,6 +338,12 @@ button {
   height: 100%;
   display: block;
   object-fit: cover;
+}
+
+.detail-image-button {
+  padding: 0;
+  border: 0;
+  cursor: zoom-in;
 }
 
 .map-thumb {
@@ -1492,6 +1503,15 @@ button {
   background: rgba(25, 31, 40, 0.36);
 }
 
+.nested-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  align-items: end;
+  background: rgba(25, 31, 40, 0.44);
+}
+
 .sheet {
   max-height: 88%;
   overflow: auto;
@@ -1517,9 +1537,19 @@ button {
   margin-bottom: 14px;
 }
 
+.sheet-header-actions {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .detail-sheet {
   display: grid;
   gap: 14px;
+}
+
+.detail-sheet.without-image {
+  gap: 12px;
 }
 
 .message-sheet {
@@ -1534,6 +1564,32 @@ button {
 .detail-sheet > .item-visual {
   width: 100%;
   height: 168px;
+}
+
+.image-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(25, 31, 40, 0.86);
+}
+
+.image-viewer-backdrop img {
+  max-width: 100%;
+  max-height: 82%;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+}
+
+.image-viewer-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .detail-sheet p {
@@ -1655,6 +1711,149 @@ button {
 .create-sheet {
   display: grid;
   gap: 12px;
+}
+
+.location-field {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #e5e8eb;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.location-field div {
+  display: grid;
+  gap: 5px;
+}
+
+.location-field span,
+.location-picker-summary span {
+  color: #6b7684;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.location-field strong,
+.location-picker-summary strong {
+  color: #191f28;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.location-picker-sheet {
+  display: grid;
+  gap: 12px;
+}
+
+.building-search {
+  position: relative;
+  z-index: 10;
+}
+
+.building-search .search-box {
+  border: 1px solid #e5e8eb;
+  background: #ffffff;
+}
+
+.building-suggestion-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 12;
+  max-height: 218px;
+  overflow: auto;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #d9e0e6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(25, 31, 40, 0.16);
+}
+
+.building-suggestion-list button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+
+.building-suggestion-list button:hover,
+.building-suggestion-list button:focus {
+  background: #f2f4f6;
+}
+
+.building-suggestion-list strong {
+  color: #191f28;
+  font-size: 14px;
+}
+
+.building-suggestion-empty {
+  padding: 14px 10px;
+  color: #8b95a1;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.location-picker-map {
+  position: relative;
+  height: min(440px, 58dvh);
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid #e5e8eb;
+  border-radius: 8px;
+  background: #d8ecf8;
+}
+
+.location-picker-viewport {
+  inset: 0;
+}
+
+.location-center-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 4px solid #ffffff;
+  border-radius: 50% 50% 50% 9px;
+  box-shadow: 0 12px 24px rgba(25, 31, 40, 0.28);
+  transform: translate(-50%, -100%) rotate(-45deg);
+  pointer-events: none;
+}
+
+.location-center-pin.found {
+  background: #00a889;
+}
+
+.location-center-pin.request {
+  background: #3182f6;
+}
+
+.location-picker-summary {
+  display: grid;
+  gap: 4px;
+  padding: 13px;
+  border-radius: 8px;
+  background: #f8fafb;
+}
+
+.location-picker-summary small {
+  color: #8b95a1;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .message-form label,
