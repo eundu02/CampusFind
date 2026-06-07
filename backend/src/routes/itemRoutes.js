@@ -375,6 +375,7 @@ router.get("/", async (req, res) => {
     const result = await pool.query(`
       SELECT
         i.id,
+        i.author_id,
         i.type,
         i.title,
         i.description,
@@ -383,6 +384,7 @@ router.get("/", async (req, res) => {
         i.status,
         i.created_at,
         i.updated_at,
+        i.author_id,
         u.nickname AS author_nickname,
         c.name AS category_name,
         b.name AS building_name,
@@ -510,6 +512,7 @@ router.get("/nearby", async (req, res) => {
         i.status,
         i.created_at,
         i.updated_at,
+        i.author_id,
         u.nickname AS author_nickname,
         c.name AS category_name,
         b.name AS building_name,
@@ -782,7 +785,7 @@ router.patch("/:id", async (req, res) => {
  * /api/items/{id}:
  *   delete:
  *     summary: 게시글 삭제
- *     description: 요청 body의 author_id로 작성자 본인 여부를 확인한 뒤 게시글과 게시글 이미지 정보를 삭제합니다.
+ *     description: 작성자 본인 여부를 확인한 뒤 게시글에 연결된 쪽지, 채팅방, 이미지 정보를 함께 삭제합니다.
  *     tags: [Items]
  *     parameters:
  *       - in: path
@@ -856,6 +859,20 @@ router.delete("/:id", async (req, res) => {
         message: "게시글 작성자만 삭제할 수 있습니다.",
       });
     }
+
+    await client.query(
+      `
+      DELETE FROM messages
+      WHERE room_id IN (
+        SELECT id
+        FROM message_rooms
+        WHERE item_id = $1
+      )
+      `,
+      [itemId]
+    );
+
+    await client.query("DELETE FROM message_rooms WHERE item_id = $1", [itemId]);
 
     await client.query("DELETE FROM item_images WHERE item_id = $1", [itemId]);
 
@@ -936,6 +953,7 @@ router.get("/:id", async (req, res) => {
         i.status,
         i.created_at,
         i.updated_at,
+        i.author_id,
         u.nickname AS author_nickname,
         c.name AS category_name,
         b.name AS building_name,

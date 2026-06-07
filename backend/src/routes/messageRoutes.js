@@ -67,7 +67,6 @@ router.post("/", async (req, res) => {
 
     const item = itemResult.rows[0];
 
-    if (Number(item.author_id) === senderId) {
       return res.status(403).json({ message: "본인 게시글에는 쪽지를 보낼 수 없습니다." });
     }
 
@@ -286,7 +285,7 @@ router.get("/:id/messages", async (req, res) => {
     }
 
     const room = roomResult.rows[0];
-    if (room.author_id !== parseInt(user_id) && room.contact_id !== parseInt(user_id)) {
+    if (Number(room.author_id) !== Number(user_id) && Number(room.contact_id) !== Number(user_id)) {
       return res.status(403).json({ message: "채팅방 접근 권한이 없습니다." });
     }
 
@@ -379,7 +378,7 @@ router.post("/:id/messages", async (req, res) => {
     }
 
     const room = roomResult.rows[0];
-    if (Number(room.author_id) !== senderId && Number(room.contact_id) !== senderId) {
+
       return res.status(403).json({ message: "채팅방 접근 권한이 없습니다." });
     }
 
@@ -469,7 +468,7 @@ router.put("/:id/read", async (req, res) => {
     }
 
     const room = roomResult.rows[0];
-    if (room.author_id !== parseInt(user_id) && room.contact_id !== parseInt(user_id)) {
+    if (Number(room.author_id) !== Number(user_id) && Number(room.contact_id) !== Number(user_id)) {
       return res.status(403).json({ message: "채팅방 접근 권한이 없습니다." });
     }
 

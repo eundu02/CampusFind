@@ -23,6 +23,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/buildings", buildingRoutes);
+app.use("/api/images", authMiddleware, imageRoutes);
 
 app.use("/api/items", (req, res, next) => {
   if (["POST", "PATCH", "DELETE"].includes(req.method)) {

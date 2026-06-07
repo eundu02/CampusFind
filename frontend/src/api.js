@@ -1,5 +1,5 @@
 import axios from "axios";
-import { campusSpots, categories } from "./data.js";
+import { campusMapPoints, campusSpots, categories } from "./data.js";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 const DEMO_USER_ID = Number(import.meta.env.VITE_DEMO_USER_ID || 1);
@@ -17,8 +17,16 @@ const categoryIdByLocalId = {
   "student-id": 3,
   bag: 4,
   clothes: 5,
-  book: 6,
-  etc: 7,
+  etc: 6,
+};
+
+const localCategoryByBackendId = {
+  1: "electronics",
+  2: "wallet",
+  3: "student-id",
+  4: "bag",
+  5: "clothes",
+  6: "etc",
 };
 
 const localCategoryByBackendName = {
@@ -34,15 +42,14 @@ const localCategoryByBackendName = {
 };
 
 const buildingIdBySpotId = {
-  wonhyo: 1,
-  library: 2,
-  "student-hall": 3,
+  wonhyo: 8,
+  library: 7,
+  "student-hall": 1,
   munmu: 4,
-  jinheung: 5,
-  science: 11,
-  ground: 14,
-  centennial: 31,
-  "main-gate": 10,
+  jinheung: 9,
+  science: 3,
+  ground: 16,
+  centennial: 6,
 };
 
 export function isBackendEnabled() {
@@ -107,7 +114,15 @@ export async function fetchItemsFromApi() {
 export async function createItemOnApi(draft, session) {
   if (!USE_BACKEND) return null;
 
-  const images = draft.photoFile ? await uploadImages([draft.photoFile], session?.token) : [];
+  let images = [];
+  if (draft.photoFile) {
+    try {
+      images = await uploadImages([draft.photoFile], session?.token);
+    } catch (error) {
+      console.warn("이미지 업로드에 실패해 게시글만 등록합니다.", error);
+    }
+  }
+
   const { data } = await api.post(
     "/items",
     toCreatePayload(draft, images, session?.user?.id),
@@ -115,9 +130,39 @@ export async function createItemOnApi(draft, session) {
       headers: authHeaders(session?.token),
     },
   );
+  const savedImage = data.images?.[0] ?? images[0];
   return toLocalItem({
     ...data.item,
-    thumbnail_url: images[0]?.storage_url,
+    thumbnail_url: savedImage?.storage_url,
+  });
+}
+
+export async function deleteItemOnApi(item, session) {
+  if (!USE_BACKEND) return null;
+
+  const itemId = item.remoteId ?? item.id;
+  const { data } = await api.delete(`/items/${itemId}`, {
+    headers: authHeaders(session?.token),
+  });
+
+  return data;
+}
+
+export async function updateItemOnApi(item, draft, session) {
+  if (!USE_BACKEND) return null;
+
+  const itemId = item.remoteId ?? item.id;
+  const { data } = await api.patch(
+    `/items/${itemId}`,
+    toUpdatePayload(draft),
+    {
+      headers: authHeaders(session?.token),
+    },
+  );
+
+  return toLocalItem({
+    ...data.item,
+    thumbnail_url: item.imageUrl,
   });
 }
 
@@ -146,6 +191,74 @@ export async function sendMessageOnApi(item, content, session) {
   );
 
   return data.data;
+}
+
+export async function fetchInboxMessagesFromApi(session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token) return [];
+
+  const userId = Number(session.user.id);
+  const requestConfig = {
+    headers: authHeaders(session.token),
+  };
+  const { data } = await api.get("/rooms", {
+    ...requestConfig,
+    params: { user_id: userId },
+  });
+  const rooms = data.rooms ?? [];
+  const roomMessages = await Promise.all(
+    rooms.map(async (room) => {
+      const response = await api.get(`/rooms/${room.id}/messages`, {
+        ...requestConfig,
+        params: { user_id: userId },
+      });
+      const messages = response.data.messages ?? [];
+      const lastMessage = messages.at(-1);
+
+      return toInboxMessage(room, lastMessage, userId);
+    }),
+  );
+
+  return roomMessages.filter(Boolean);
+}
+
+export async function fetchRoomMessagesFromApi(roomId, session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return [];
+
+  const userId = Number(session.user.id);
+  const { data } = await api.get(`/rooms/${roomId}/messages`, {
+    headers: authHeaders(session.token),
+    params: { user_id: userId },
+  });
+
+  return (data.messages ?? []).map((message) => toConversationMessage(message, userId));
+}
+
+export async function sendRoomMessageOnApi(roomId, content, session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return null;
+
+  const userId = Number(session.user.id);
+  const { data } = await api.post(
+    `/rooms/${roomId}/messages`,
+    {
+      sender_id: userId,
+      content,
+    },
+    { headers: authHeaders(session.token) },
+  );
+
+  return toConversationMessage({ ...data.data, room_id: roomId }, userId);
+}
+
+export async function markRoomReadOnApi(roomId, session) {
+  if (!USE_BACKEND || !session?.user?.id || !session?.token || !roomId) return null;
+
+  const { data } = await api.put(
+    `/rooms/${roomId}/read`,
+    { user_id: Number(session.user.id) },
+    { headers: authHeaders(session.token) },
+  );
+
+  return data;
 }
 
 async function uploadImages(files, token) {
@@ -184,6 +297,26 @@ function toCreatePayload(draft, images, authorId) {
   };
 }
 
+function toUpdatePayload(draft) {
+  const spot = findSpot(draft.place);
+  const location = draft.location ?? {
+    lat: spot?.lat,
+    lng: spot?.lng,
+  };
+
+  return {
+    category_id: categoryIdByLocalId[draft.category] ?? categoryIdByLocalId.etc,
+    building_id: buildingIdBySpotId[spot?.id] ?? 1,
+    type: draft.type === "found" ? "FOUND" : "LOST",
+    title: draft.title.trim(),
+    description: draft.description.trim(),
+    location_detail: draft.place,
+    latitude: location.lat,
+    longitude: location.lng,
+    reward_amount: draft.type === "request" ? Number(draft.reward || 0) : 0,
+  };
+}
+
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -208,26 +341,74 @@ function normalizeSession(payload = {}) {
   };
 }
 
+function toInboxMessage(room, lastMessage, userId) {
+  const unreadCount = Number(room.unread_count ?? 0);
+  const isSent = Number(lastMessage?.sender_id) === userId;
+  const timeSource = lastMessage?.created_at || room.last_message_at || room.created_at;
+
+  return {
+    id: lastMessage ? `room-${room.id}-message-${lastMessage.id}` : `room-${room.id}`,
+    roomId: room.id,
+    itemId: room.item_id,
+    itemTitle: room.item_title,
+    direction: isSent ? "sent" : "received",
+    sender: isSent ? "나" : room.other_nickname || "상대방",
+    time: formatRelativeTime(timeSource),
+    unread: !isSent && unreadCount > 0,
+    message: lastMessage?.content || room.last_message || "아직 메시지가 없습니다.",
+  };
+}
+
+function toConversationMessage(message, userId) {
+  const isSent = Number(message.sender_id) === userId;
+
+  return {
+    id: message.id,
+    roomId: message.room_id,
+    direction: isSent ? "sent" : "received",
+    sender: isSent ? "나" : "상대방",
+    time: formatRelativeTime(message.created_at),
+    unread: !isSent && message.is_read === false,
+    message: message.content || "",
+    createdAt: message.created_at,
+  };
+}
+
 function toLocalItem(item) {
   const type = item.type === "FOUND" ? "found" : "request";
   const category = resolveLocalCategory(item.category_name, item.category_id);
   const location = resolveLocation(item);
   const label = categories.find((entry) => entry.id === category)?.label ?? "물품";
+  const imageUrl = resolveImageUrl(item);
 
   return {
     id: item.id,
     remoteId: item.id,
+    authorId: item.author_id ? Number(item.author_id) : null,
     type,
     category,
     title: item.title,
     description: item.description || "상세 설명이 없습니다.",
     place: item.location_detail || item.building_name || "위치 미확인",
     time: formatRelativeTime(item.created_at),
-    imageLabel: item.thumbnail_url ? label : label,
+    imageLabel: imageUrl ? label : label,
+    imageUrl,
     color: type === "found" ? colorForCategory(category) : "#2563eb",
     location,
     reward: Number(item.reward_amount || 0),
   };
+}
+
+function resolveImageUrl(item) {
+  const firstImage = Array.isArray(item.images) ? item.images[0] : null;
+  return (
+    item.thumbnail_url ||
+    item.storage_url ||
+    firstImage?.storage_url ||
+    firstImage?.url ||
+    firstImage?.secure_url ||
+    null
+  );
 }
 
 function resolveLocalCategory(categoryName, categoryId) {
@@ -239,16 +420,19 @@ function resolveLocalCategory(categoryName, categoryId) {
     if (matchedKey) return localCategoryByBackendName[matchedKey];
   }
 
-  const entry = Object.entries(categoryIdByLocalId).find(([, id]) => id === Number(categoryId));
-  return entry?.[0] ?? "etc";
+  return localCategoryByBackendId[Number(categoryId)] ?? "etc";
 }
 
 function resolveLocation(item) {
   const spot = findSpot(item.building_name || item.location_detail);
+  const exactPlace = (item.building_name || item.location_detail || "").trim();
+  const mapPoint = campusMapPoints.find((point) => point.name === exactPlace);
 
   return {
     x: spot?.x ?? 50,
     y: spot?.y ?? 50,
+    mapX: item.mapX ?? item.map_x ?? mapPoint?.x,
+    mapY: item.mapY ?? item.map_y ?? mapPoint?.y,
     lat: Number(item.latitude ?? spot?.lat ?? 35.8622),
     lng: Number(item.longitude ?? spot?.lng ?? 129.1951),
     source: "SERVER",
@@ -266,7 +450,6 @@ function colorForCategory(category) {
     "student-id": "#0f766e",
     bag: "#64748b",
     clothes: "#7c3aed",
-    book: "#b45309",
     etc: "#3182f6",
   };
 

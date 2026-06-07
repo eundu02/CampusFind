@@ -5,7 +5,6 @@ export const categories = [
   { id: "student-id", label: "학생증" },
   { id: "bag", label: "가방" },
   { id: "clothes", label: "의류" },
-  { id: "book", label: "책/필기구" },
   { id: "etc", label: "기타" },
 ];
 
@@ -148,7 +147,7 @@ export const initialItems = [
   {
     id: 5,
     type: "found",
-    category: "book",
+    category: "etc",
     title: "자료구조 전공 서적",
     description: "정문 버스정류장 벤치에서 발견했습니다.",
     place: "정문",
