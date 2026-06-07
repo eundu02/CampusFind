@@ -1158,14 +1158,75 @@ function ListView({ items, query, isSearchOpen, selectedCategory, onQueryChange,
 }
 
 function CategoryRail({ selectedCategory, onCategoryChange }) {
+  const railRef = useRef(null);
+  const dragRef = useRef({
+    active: false,
+    moved: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
+
+  function handlePointerDown(event) {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    dragRef.current = {
+      active: true,
+      moved: false,
+      startX: event.clientX,
+      scrollLeft: rail.scrollLeft,
+    };
+    rail.setPointerCapture?.(event.pointerId);
+  }
+
+  function handlePointerMove(event) {
+    const rail = railRef.current;
+    const drag = dragRef.current;
+    if (!rail || !drag.active) return;
+
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) > 4) {
+      drag.moved = true;
+      rail.classList.add("is-dragging");
+    }
+
+    rail.scrollLeft = drag.scrollLeft - distance;
+  }
+
+  function handlePointerEnd(event) {
+    const rail = railRef.current;
+    dragRef.current.active = false;
+    rail?.classList.remove("is-dragging");
+    rail?.releasePointerCapture?.(event.pointerId);
+  }
+
+  function handleCategoryClick(event, categoryId) {
+    if (dragRef.current.moved) {
+      event.preventDefault();
+      dragRef.current.moved = false;
+      return;
+    }
+
+    onCategoryChange(categoryId);
+  }
+
   return (
-    <div className="category-rail" aria-label="카테고리">
+    <div
+      ref={railRef}
+      className="category-rail"
+      aria-label="카테고리"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
+      onPointerLeave={handlePointerEnd}
+    >
       {categories.map((category) => (
         <button
           key={category.id}
           className={`category-chip ${selectedCategory === category.id ? "selected" : ""}`}
           type="button"
-          onClick={() => onCategoryChange(category.id)}
+          onClick={(event) => handleCategoryClick(event, category.id)}
         >
           {category.label}
         </button>
