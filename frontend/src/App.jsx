@@ -1463,8 +1463,16 @@ function ProfileView({
           />
         </label>
         <div className="profile-account-row">
-          <span>{authUser.email}</span>
-          {authUser.studentId && <span>{authUser.studentId}</span>}
+          <p>
+            <span>이메일:</span>
+            <strong>{authUser.email}</strong>
+          </p>
+          {authUser.studentId && (
+            <p>
+              <span>학번:</span>
+              <strong>{authUser.studentId}</strong>
+            </p>
+          )}
         </div>
       </section>
 
