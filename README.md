@@ -154,6 +154,17 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&has_reward=true
 
 ---
 
+### 5.7 회원가입 및 로그인 기능
+
+- 동국대 이메일(@dongguk.ac.kr)로 이메일 인증 후 회원가입
+- 이메일로 6자리 인증코드 발송 (5분 유효)
+- 인증코드 확인 후 학번, 닉네임, 비밀번호 입력으로 가입 완료
+- bcrypt를 이용한 비밀번호 해싱 저장
+- 로그인 성공 시 JWT 토큰 발급 (7일 유효)
+- JWT Bearer 토큰 기반 인증으로 게시글 등록/수정/삭제, 쪽지 등 보호 API 접근
+
+---
+
 ## 6. 요구사항 분석
 
 ### 6.1 기능 요구사항
@@ -370,6 +381,17 @@ POINT(longitude latitude)
 
 ---
 
+### 9.5 Auth API
+
+| Method | URL | 설명 |
+|---|---|---|
+| POST | /api/auth/send-code | 이메일 인증코드 발송 |
+| POST | /api/auth/verify-code | 인증코드 확인 |
+| POST | /api/auth/signup | 회원가입 |
+| POST | /api/auth/login | 로그인 |
+
+---
+
 ## 10. 구현 내용
 
 ### 10.1 Cloudinary 이미지 업로드
@@ -529,6 +551,86 @@ DELETE /api/items/{id}
 [사진 필요: 메시지 목록 조회 API 화면]
 [사진 필요: 안 읽은 메시지 수 조회 API 화면]
 [사진 필요: 메시지 읽음 처리 API 화면]
+
+---
+
+### 10.8 회원가입 및 로그인
+
+회원가입은 이메일 인증, 인증코드 확인, 정보 입력의 3단계로 구성하였다.
+
+**회원가입 흐름:**
+
+```txt
+1. POST /api/auth/send-code {email}
+   → 동국대 이메일(@dongguk.ac.kr) 검증 후 6자리 인증코드 발송 (5분 유효)
+
+2. POST /api/auth/verify-code {email, code}
+   → 인증코드 일치 여부 확인, 통과 시 인증 완료 상태 저장 (10분 유효)
+
+3. POST /api/auth/signup {email, password, nickname, student_id}
+   → 이메일 인증 완료 여부 확인
+   → 이메일, 학번, 닉네임 중복 확인
+   → bcrypt로 비밀번호 해싱 후 users 테이블에 저장
+   → JWT 토큰 발급 (7일 유효)
+```
+
+<img width="361" height="641" alt="제목 없는 다이어그램 drawio (13)" src="https://github.com/user-attachments/assets/05c374be-7f48-4069-8ff0-edc776126f40" />
+
+**로그인 흐름:**
+
+```txt
+1. POST /api/auth/login {email, password}
+   → users 테이블에서 이메일로 사용자 조회
+   → bcrypt.compare로 비밀번호 검증
+   → JWT 토큰 발급 (7일 유효)
+```
+
+<img width="348" height="460" alt="KakaoTalk_20260607_230028977" src="https://github.com/user-attachments/assets/30a43707-dbca-48ec-8eb7-e9f38518c3a3" />
+
+**보호 API 접근:**
+
+로그인 후 발급된 JWT 토큰을 Authorization 헤더에 포함하여 요청한다.
+
+```txt
+Authorization: Bearer {token}
+```
+
+게시글 등록/수정/삭제, 이미지 업로드, 쪽지 기능은 토큰 검증 미들웨어를 통해 인증된 사용자만 접근할 수 있다.
+
+---
+
+### 10.9 이메일 인증 서비스 구현
+
+이메일 인증코드는 외부 DB 대신 서버 인메모리 Map으로 관리하였다.
+
+두 개의 Map을 사용한다.
+
+| Map | 키 | 값 | 유효 시간 |
+|---|---|---|---|
+| verificationCodes | email | { code, expiresAt } | 5분 |
+| verifiedEmails | email | expiresAt | 10분 |
+
+**처리 흐름:**
+
+```txt
+1. 인증코드 요청 (send-code)
+   → 6자리 난수 생성
+   → verificationCodes Map에 저장 (5분 유효)
+   → Gmail SMTP로 인증코드 발송
+
+2. 인증코드 확인 (verify-code)
+   → verificationCodes에서 코드 조회
+   → 만료 여부 및 일치 여부 확인
+   → 통과 시 verificationCodes에서 삭제
+   → verifiedEmails Map에 저장 (10분 유효)
+
+3. 회원가입 (signup)
+   → consumeVerifiedEmail 호출
+   → verifiedEmails에 해당 이메일이 있으면 삭제 후 true 반환
+   → 없거나 만료된 경우 false 반환 → 400 오류
+```
+
+인메모리 방식이므로 서버 재시작 시 인증 상태가 초기화된다. 현재 프로젝트 규모에서는 별도 Redis 등 외부 저장소 없이 간단하게 처리하였다.
 
 ---
 
