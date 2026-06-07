@@ -37,7 +37,7 @@ const router = express.Router();
  *         description: 이메일 형식 오류 또는 이미 가입된 이메일
  */
 router.post("/send-code", async (req, res) => {
-  const { email } = req.body;
+  const { email } = req.body ?? {};
 
   if (!email || !email.endsWith("@dongguk.ac.kr")) {
     return res.status(400).json({ message: "동국대 이메일(@dongguk.ac.kr)만 사용 가능합니다." });
@@ -83,7 +83,7 @@ router.post("/send-code", async (req, res) => {
  *         description: 인증 실패
  */
 router.post("/verify-code", (req, res) => {
-  const { email, code } = req.body;
+  const { email, code } = req.body ?? {};
 
   if (!email || !code) {
     return res.status(400).json({ message: "이메일과 인증코드를 입력해주세요." });
@@ -126,7 +126,7 @@ router.post("/verify-code", (req, res) => {
  *         description: 입력값 오류 또는 중복
  */
 router.post("/signup", async (req, res) => {
-  const { email, password, nickname, student_id } = req.body;
+  const { email, password, nickname, student_id } = req.body ?? {};
 
   if (!email || !password || !nickname || !student_id) {
     return res.status(400).json({ message: "모든 필드를 입력해주세요." });
@@ -203,7 +203,7 @@ router.post("/signup", async (req, res) => {
  *         description: 이메일 또는 비밀번호 불일치
  */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body ?? {};
 
   if (!email || !password) {
     return res.status(400).json({ message: "이메일과 비밀번호를 입력해주세요." });

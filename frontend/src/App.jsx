@@ -450,10 +450,11 @@ function App() {
       const remoteMessages = await fetchInboxMessagesFromApi(authSession);
       setMessages(remoteMessages);
     } catch (error) {
+      const failureMessage = error.response?.data?.message || error.message;
       setMessages((prev) =>
         prev.map((entry) =>
           entry.id === sentMessage.id
-            ? { ...entry, message: `${entry.message}\n\n(API 전송 실패: ${error.message})` }
+            ? { ...entry, message: `${entry.message}\n\n(API 전송 실패: ${failureMessage})` }
             : entry,
         ),
       );

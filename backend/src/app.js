@@ -32,6 +32,7 @@ app.use("/api/items", (req, res, next) => {
   next();
 }, itemRoutes);
 
+app.use("/api/images", authMiddleware, imageRoutes);
 app.use("/api/rooms", authMiddleware, messageRoutes);
 
 app.get("/", async (req, res) => {

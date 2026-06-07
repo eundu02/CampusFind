@@ -170,7 +170,6 @@ export async function sendMessageOnApi(item, content, session) {
   if (!USE_BACKEND) return null;
 
   const itemId = item.remoteId ?? item.id;
-  const senderId = session?.user?.id ?? DEMO_USER_ID;
   const requestConfig = {
     headers: authHeaders(session?.token),
   };
@@ -178,7 +177,6 @@ export async function sendMessageOnApi(item, content, session) {
     "/rooms",
     {
       item_id: itemId,
-      sender_id: senderId,
     },
     requestConfig,
   );
@@ -187,7 +185,6 @@ export async function sendMessageOnApi(item, content, session) {
   const { data } = await api.post(
     `/rooms/${roomId}/messages`,
     {
-      sender_id: senderId,
       content,
     },
     requestConfig,
