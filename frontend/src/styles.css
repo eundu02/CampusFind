@@ -349,6 +349,7 @@ button {
   height: 100%;
   display: block;
   object-fit: cover;
+  object-position: center center;
 }
 
 .detail-image-button {
@@ -1591,7 +1592,11 @@ button {
 
 .detail-sheet > .item-visual {
   width: 100%;
-  height: 168px;
+  height: clamp(260px, 42dvh, 360px);
+}
+
+.detail-sheet > .item-visual img {
+  object-position: center center;
 }
 
 .image-viewer-backdrop {
