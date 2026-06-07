@@ -1195,9 +1195,24 @@ function CategoryRail({ selectedCategory, onCategoryChange }) {
 
   function handlePointerEnd(event) {
     const rail = railRef.current;
+    const drag = dragRef.current;
+    const wasMoved = drag.moved;
+
     dragRef.current.active = false;
     rail?.classList.remove("is-dragging");
-    rail?.releasePointerCapture?.(event.pointerId);
+    if (rail?.hasPointerCapture?.(event.pointerId)) {
+      rail.releasePointerCapture(event.pointerId);
+    }
+
+    if (!wasMoved && event.type === "pointerup" && rail) {
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const categoryButton = target?.closest?.(".category-chip");
+      const categoryId = categoryButton?.dataset.categoryId;
+
+      if (categoryButton && rail.contains(categoryButton) && categoryId) {
+        onCategoryChange(categoryId);
+      }
+    }
   }
 
   function handleCategoryClick(event, categoryId) {
@@ -1225,6 +1240,7 @@ function CategoryRail({ selectedCategory, onCategoryChange }) {
         <button
           key={category.id}
           className={`category-chip ${selectedCategory === category.id ? "selected" : ""}`}
+          data-category-id={category.id}
           type="button"
           onClick={(event) => handleCategoryClick(event, category.id)}
         >
@@ -1938,8 +1954,8 @@ function constrainMapTransform(transform, rect) {
   const scale = clamp(transform.scale, transform.minScale, transform.maxScale);
   const scaledWidth = mapImageSize.width * scale;
   const scaledHeight = mapImageSize.height * scale;
-  const x = clamp(transform.x, Math.min(rect.width - scaledWidth, 0), 0);
-  const y = clamp(transform.y, Math.min(rect.height - scaledHeight, 0), 0);
+  const x = clamp(transform.x, rect.width / 2 - scaledWidth, rect.width / 2);
+  const y = clamp(transform.y, rect.height / 2 - scaledHeight, rect.height / 2);
 
   return {
     ...transform,
@@ -2017,12 +2033,21 @@ function isInsideCampusBounds({ lat, lng }) {
 }
 
 function toCampusPoint(location = kakaoMapCenter) {
-  const { lat, lng, mapX, mapY } = location;
+  const { lat, lng, mapX, mapY, name } = location;
 
   if (Number.isFinite(mapX) && Number.isFinite(mapY)) {
     return {
       x: clamp(mapX, 0, 100),
       y: clamp(mapY, 0, 100),
+      visible: true,
+    };
+  }
+
+  const mapPoint = findCampusMapPoint(name ?? "");
+  if (mapPoint) {
+    return {
+      x: clamp(mapPoint.x, 0, 100),
+      y: clamp(mapPoint.y, 0, 100),
       visible: true,
     };
   }

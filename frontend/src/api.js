@@ -130,9 +130,10 @@ export async function createItemOnApi(draft, session) {
       headers: authHeaders(session?.token),
     },
   );
+  const savedImage = data.images?.[0] ?? images[0];
   return toLocalItem({
     ...data.item,
-    thumbnail_url: images[0]?.storage_url,
+    thumbnail_url: savedImage?.storage_url,
   });
 }
 
