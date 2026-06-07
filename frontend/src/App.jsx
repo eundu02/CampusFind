@@ -312,8 +312,8 @@ function App() {
       place: draft.place,
       authorId: currentUserId,
       time: "방금",
-      imageLabel: draft.type === "found" ? draft.imageLabel || draft.photoName || "첨부 사진" : null,
-      imageUrl: draft.type === "found" && draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
+      imageLabel: draft.imageLabel || draft.photoName || "첨부 사진",
+      imageUrl: draft.photoFile ? URL.createObjectURL(draft.photoFile) : null,
       color: draft.color,
       location,
       reward: draft.type === "request" ? Number(draft.reward || 0) : 0,
@@ -1256,7 +1256,7 @@ function PostCard({ item, onClick }) {
 }
 
 function ItemVisual({ item, onImageClick }) {
-  if (item.type === "request") {
+  if (item.type === "request" && !item.imageUrl) {
     return (
       <div className="item-visual map-thumb">
         <PinIcon />
@@ -2079,7 +2079,7 @@ function DetailSheet({ item, canDelete, sentCount, onClose, onDelete, onEdit, on
   const [message, setMessage] = useState("");
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const hasDetailImage = item.type === "found";
+  const hasDetailImage = item.type === "found" || Boolean(item.imageUrl);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -2390,16 +2390,16 @@ function CreateSheet({ initialItem = null, onClose, onSubmit }) {
           </select>
         </label>
 
-        {draft.type === "found" ? (
-          !isEditing && (
-            <label className="field file-field">
-              <span>사진</span>
-              <input accept="image/*" type="file" onChange={handlePhotoChange} />
-              <strong>{draft.photoName || "사진 선택"}</strong>
-              <small>{metadataText(draft.status)}</small>
-            </label>
-          )
-        ) : (
+        {!isEditing && (
+          <label className="field file-field">
+            <span>사진</span>
+            <input accept="image/*" type="file" onChange={handlePhotoChange} />
+            <strong>{draft.photoName || "사진 선택"}</strong>
+            <small>{metadataText(draft.status)}</small>
+          </label>
+        )}
+
+        {draft.type === "request" && (
           <label className="field">
             <span>사례금</span>
             <input
