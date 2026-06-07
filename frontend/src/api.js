@@ -382,6 +382,7 @@ function toLocalItem(item) {
   const category = resolveLocalCategory(item.category_name, item.category_id);
   const location = resolveLocation(item);
   const label = categories.find((entry) => entry.id === category)?.label ?? "물품";
+  const imageUrl = resolveImageUrl(item);
 
   return {
     id: item.id,
@@ -393,12 +394,24 @@ function toLocalItem(item) {
     description: item.description || "상세 설명이 없습니다.",
     place: item.location_detail || item.building_name || "위치 미확인",
     time: formatRelativeTime(item.created_at),
-    imageLabel: item.thumbnail_url ? label : label,
-    imageUrl: item.thumbnail_url ?? null,
+    imageLabel: imageUrl ? label : label,
+    imageUrl,
     color: type === "found" ? colorForCategory(category) : "#2563eb",
     location,
     reward: Number(item.reward_amount || 0),
   };
+}
+
+function resolveImageUrl(item) {
+  const firstImage = Array.isArray(item.images) ? item.images[0] : null;
+  return (
+    item.thumbnail_url ||
+    item.storage_url ||
+    firstImage?.storage_url ||
+    firstImage?.url ||
+    firstImage?.secure_url ||
+    null
+  );
 }
 
 function resolveLocalCategory(categoryName, categoryId) {
@@ -421,8 +434,8 @@ function resolveLocation(item) {
   return {
     x: spot?.x ?? 50,
     y: spot?.y ?? 50,
-    mapX: mapPoint?.x,
-    mapY: mapPoint?.y,
+    mapX: item.mapX ?? item.map_x ?? mapPoint?.x,
+    mapY: item.mapY ?? item.map_y ?? mapPoint?.y,
     lat: Number(item.latitude ?? spot?.lat ?? 35.8622),
     lng: Number(item.longitude ?? spot?.lng ?? 129.1951),
     source: "SERVER",

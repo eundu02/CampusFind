@@ -140,6 +140,15 @@ const campusBounds = {
   east: 129.19815,
 };
 
+const mapGeoTransform = {
+  latFromX: 0.0000003200353453636229,
+  latFromY: -0.00007172566550406323,
+  latOffset: 35.86707686102025,
+  lngFromX: 0.00009859256573108155,
+  lngFromY: -0.0000052342162488727695,
+  lngOffset: 129.18866967779593,
+};
+
 const buildingSearchSpots = [
   { id: 1, name: "학생회관", lat: 35.8620820, lng: 129.1961830 },
   { id: 3, name: "자연과학관", lat: 35.8631560, lng: 129.1965830 },
@@ -1159,82 +1168,12 @@ function ListView({ items, query, isSearchOpen, selectedCategory, onQueryChange,
 
 function CategoryRail({ selectedCategory, onCategoryChange }) {
   const railRef = useRef(null);
-  const dragRef = useRef({
-    active: false,
-    moved: false,
-    startX: 0,
-    scrollLeft: 0,
-  });
-
-  function handlePointerDown(event) {
-    const rail = railRef.current;
-    if (!rail) return;
-
-    dragRef.current = {
-      active: true,
-      moved: false,
-      startX: event.clientX,
-      scrollLeft: rail.scrollLeft,
-    };
-    rail.setPointerCapture?.(event.pointerId);
-  }
-
-  function handlePointerMove(event) {
-    const rail = railRef.current;
-    const drag = dragRef.current;
-    if (!rail || !drag.active) return;
-
-    const distance = event.clientX - drag.startX;
-    if (Math.abs(distance) > 4) {
-      drag.moved = true;
-      rail.classList.add("is-dragging");
-    }
-
-    rail.scrollLeft = drag.scrollLeft - distance;
-  }
-
-  function handlePointerEnd(event) {
-    const rail = railRef.current;
-    const drag = dragRef.current;
-    const wasMoved = drag.moved;
-
-    dragRef.current.active = false;
-    rail?.classList.remove("is-dragging");
-    if (rail?.hasPointerCapture?.(event.pointerId)) {
-      rail.releasePointerCapture(event.pointerId);
-    }
-
-    if (!wasMoved && event.type === "pointerup" && rail) {
-      const target = document.elementFromPoint(event.clientX, event.clientY);
-      const categoryButton = target?.closest?.(".category-chip");
-      const categoryId = categoryButton?.dataset.categoryId;
-
-      if (categoryButton && rail.contains(categoryButton) && categoryId) {
-        onCategoryChange(categoryId);
-      }
-    }
-  }
-
-  function handleCategoryClick(event, categoryId) {
-    if (dragRef.current.moved) {
-      event.preventDefault();
-      dragRef.current.moved = false;
-      return;
-    }
-
-    onCategoryChange(categoryId);
-  }
 
   return (
     <div
       ref={railRef}
       className="category-rail"
       aria-label="카테고리"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onPointerLeave={handlePointerEnd}
     >
       {categories.map((category) => (
         <button
@@ -1242,7 +1181,7 @@ function CategoryRail({ selectedCategory, onCategoryChange }) {
           className={`category-chip ${selectedCategory === category.id ? "selected" : ""}`}
           data-category-id={category.id}
           type="button"
-          onClick={(event) => handleCategoryClick(event, category.id)}
+          onClick={() => onCategoryChange(category.id)}
         >
           {category.label}
         </button>
@@ -1991,10 +1930,7 @@ function toCampusLocation(point) {
   const x = clamp(point.x, 7, 93);
   const y = clamp(point.y, 8, 92);
 
-  return {
-    lat: campusBounds.north - ((y - 8) / 84) * (campusBounds.north - campusBounds.south),
-    lng: campusBounds.west + ((x - 7) / 86) * (campusBounds.east - campusBounds.west),
-  };
+  return mapPointToGeo({ x, y });
 }
 
 function getNearestCampusSpot(point) {
@@ -2032,6 +1968,13 @@ function isInsideCampusBounds({ lat, lng }) {
   );
 }
 
+function clampGeoToCampus({ lat, lng }) {
+  return {
+    lat: clamp(Number(lat), campusBounds.south, campusBounds.north),
+    lng: clamp(Number(lng), campusBounds.west, campusBounds.east),
+  };
+}
+
 function toCampusPoint(location = kakaoMapCenter) {
   const { lat, lng, mapX, mapY, name } = location;
 
@@ -2052,14 +1995,46 @@ function toCampusPoint(location = kakaoMapCenter) {
     };
   }
 
-  const x = 7 + ((lng - campusBounds.west) / (campusBounds.east - campusBounds.west)) * 86;
-  const y = 8 + ((campusBounds.north - lat) / (campusBounds.north - campusBounds.south)) * 84;
+  const { x, y } = geoToMapPoint({ lat, lng });
   const visible = isInsideCampusBounds({ lat, lng });
 
   return {
     x,
     y,
     visible,
+  };
+}
+
+function mapPointToGeo({ x, y }) {
+  return {
+    lat: mapGeoTransform.latFromX * x + mapGeoTransform.latFromY * y + mapGeoTransform.latOffset,
+    lng: mapGeoTransform.lngFromX * x + mapGeoTransform.lngFromY * y + mapGeoTransform.lngOffset,
+  };
+}
+
+function geoToMapPoint({ lat, lng }) {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return { x: 50, y: 50 };
+  }
+
+  const {
+    latFromX,
+    latFromY,
+    latOffset,
+    lngFromX,
+    lngFromY,
+    lngOffset,
+  } = mapGeoTransform;
+  const determinant = latFromX * lngFromY - latFromY * lngFromX;
+  const latDelta = latitude - latOffset;
+  const lngDelta = longitude - lngOffset;
+
+  return {
+    x: (latDelta * lngFromY - latFromY * lngDelta) / determinant,
+    y: (latFromX * lngDelta - latDelta * lngFromX) / determinant,
   };
 }
 
@@ -2318,9 +2293,19 @@ function CreateSheet({ initialItem = null, onClose, onSubmit }) {
   const isEditing = Boolean(initialItem);
   const [draft, setDraft] = useState(() => (initialItem ? draftFromItem(initialItem) : emptyDraft));
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const photoPreviewUrl = useMemo(
+    () => (draft.photoFile ? URL.createObjectURL(draft.photoFile) : ""),
+    [draft.photoFile],
+  );
   const locationLabel = draft.location
     ? `${draft.place} (${draft.location.lat.toFixed(5)}, ${draft.location.lng.toFixed(5)})`
     : "지도에서 핀으로 위치를 지정해 주세요.";
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    };
+  }, [photoPreviewUrl]);
 
   function updateDraft(key, value) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -2429,6 +2414,9 @@ function CreateSheet({ initialItem = null, onClose, onSubmit }) {
             <input accept="image/*" type="file" onChange={handlePhotoChange} />
             <strong>{draft.photoName || "사진 선택"}</strong>
             <small>{metadataText(draft.status)}</small>
+            {photoPreviewUrl && (
+              <img className="photo-upload-preview" src={photoPreviewUrl} alt="선택한 사진 미리보기" />
+            )}
           </label>
         )}
 
@@ -2482,6 +2470,30 @@ function CreateSheet({ initialItem = null, onClose, onSubmit }) {
 }
 
 function LocationPickerSheet({ type, initialLocation, initialPlace, onClose, onSelect }) {
+  if (kakaoMapAppKey) {
+    return (
+      <KakaoLocationPickerSheet
+        type={type}
+        initialLocation={initialLocation}
+        initialPlace={initialPlace}
+        onClose={onClose}
+        onSelect={onSelect}
+      />
+    );
+  }
+
+  return (
+    <StaticLocationPickerSheet
+      type={type}
+      initialLocation={initialLocation}
+      initialPlace={initialPlace}
+      onClose={onClose}
+      onSelect={onSelect}
+    />
+  );
+}
+
+function StaticLocationPickerSheet({ type, initialLocation, initialPlace, onClose, onSelect }) {
   const initialPoint = useMemo(() => {
     if (initialLocation?.lat && initialLocation?.lng) {
       return toCampusPoint(initialLocation);
@@ -2892,6 +2904,269 @@ function LocationPickerSheet({ type, initialLocation, initialPlace, onClose, onS
             </button>
           </div>
           <div className="map-source">지도를 움직여 핀 위치 지정</div>
+        </div>
+
+        <div className="location-picker-summary">
+          <strong>{picked.place}</strong>
+          <span>{picked.location.lat.toFixed(6)}, {picked.location.lng.toFixed(6)}</span>
+          <small>{locationNotice}</small>
+        </div>
+
+        <button className="primary-action" type="button" onClick={confirmLocation}>
+          이 위치로 지정
+        </button>
+      </article>
+    </div>
+  );
+}
+
+function KakaoLocationPickerSheet({ type, initialLocation, initialPlace, onClose, onSelect }) {
+  const initialCenter = useMemo(() => {
+    if (initialLocation?.lat && initialLocation?.lng) {
+      return clampGeoToCampus(initialLocation);
+    }
+
+    const spot = campusSpots.find((entry) => entry.name === initialPlace) ?? campusSpots[0];
+    return clampGeoToCampus(spot);
+  }, [initialLocation, initialPlace]);
+  const [picked, setPicked] = useState(() => getPickedLocation(toCampusPoint(initialCenter)));
+  const [buildingQuery, setBuildingQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [locationNotice, setLocationNotice] = useState("카카오맵에서 위치를 지정해 주세요.");
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const normalizedBuildingQuery = buildingQuery.trim().toLowerCase();
+  const buildingSuggestions = useMemo(() => {
+    if (!normalizedBuildingQuery) return buildingSearchSpots;
+
+    return buildingSearchSpots.filter((building) =>
+      building.name.toLowerCase().includes(normalizedBuildingQuery),
+    );
+  }, [normalizedBuildingQuery]);
+
+  function updatePickedFromCenter(center) {
+    const location = {
+      lat: center.getLat(),
+      lng: center.getLng(),
+    };
+    const nextPicked = getPickedLocation(toCampusPoint(location));
+    setPicked({
+      ...nextPicked,
+      location: {
+        ...nextPicked.location,
+        lat: location.lat,
+        lng: location.lng,
+      },
+    });
+  }
+
+  function moveToLocation(location, notice) {
+    if (!mapRef.current || !window.kakao?.maps) return;
+
+    const nextLocation = clampGeoToCampus(location);
+    mapRef.current.setCenter(new window.kakao.maps.LatLng(nextLocation.lat, nextLocation.lng));
+    mapRef.current.setLevel(3);
+    setLocationNotice(notice);
+    setPicked(getPickedLocation(toCampusPoint(nextLocation)));
+  }
+
+  function selectBuilding(building) {
+    setBuildingQuery(building.name);
+    setIsSearchFocused(false);
+    moveToLocation(building, `${building.name} 위치로 이동했습니다.`);
+  }
+
+  function zoomFromControls(delta) {
+    if (!mapRef.current) return;
+
+    const currentLevel = mapRef.current.getLevel();
+    mapRef.current.setLevel(clamp(currentLevel + delta, 2, 6));
+  }
+
+  function confirmLocation() {
+    const center = mapRef.current?.getCenter();
+    const location = center
+      ? {
+          lat: center.getLat(),
+          lng: center.getLng(),
+        }
+      : picked.location;
+    const point = toCampusPoint(location);
+    const nextPicked = getPickedLocation(point);
+
+    onSelect({
+      place: nextPicked.place,
+      location: {
+        ...location,
+        x: point.x,
+        y: point.y,
+        mapX: point.x,
+        mapY: point.y,
+        source: "KAKAO_SELECT",
+      },
+    });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    let removeIdleListener = null;
+
+    loadKakaoMaps(kakaoMapAppKey)
+      .then((kakao) => {
+        if (cancelled || !mapContainerRef.current) return;
+
+        const center = new kakao.maps.LatLng(initialCenter.lat, initialCenter.lng);
+        const map = new kakao.maps.Map(mapContainerRef.current, {
+          center,
+          level: 3,
+        });
+
+        if (typeof map.setMinLevel === "function") map.setMinLevel(2);
+        if (typeof map.setMaxLevel === "function") map.setMaxLevel(6);
+        mapRef.current = map;
+        updatePickedFromCenter(center);
+
+        const handleIdle = () => {
+          const centerLocation = {
+            lat: map.getCenter().getLat(),
+            lng: map.getCenter().getLng(),
+          };
+
+          if (!isInsideCampusBounds(centerLocation)) {
+            const clampedLocation = clampGeoToCampus(centerLocation);
+            map.setCenter(new kakao.maps.LatLng(clampedLocation.lat, clampedLocation.lng));
+            setLocationNotice("캠퍼스 범위 안에서 위치를 지정해 주세요.");
+            return;
+          }
+
+          updatePickedFromCenter(map.getCenter());
+        };
+
+        kakao.maps.event.addListener(map, "idle", handleIdle);
+        removeIdleListener = () => kakao.maps.event.removeListener(map, "idle", handleIdle);
+        setStatus("ready");
+      })
+      .catch((loadError) => {
+        if (cancelled) return;
+        setError(loadError.message);
+        setStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+      removeIdleListener?.();
+      mapRef.current = null;
+    };
+  }, [initialCenter.lat, initialCenter.lng]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    if (!navigator.geolocation) {
+      const noticeTimer = window.setTimeout(() => {
+        setLocationNotice("현재 위치를 사용할 수 없어 선택한 위치에서 시작합니다.");
+      }, 0);
+
+      return () => window.clearTimeout(noticeTimer);
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (ignore) return;
+
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        if (!isInsideCampusBounds(location)) {
+          setLocationNotice("현재 위치가 캠퍼스 범위 밖이라 선택한 위치에서 시작합니다.");
+          return;
+        }
+
+        moveToLocation(location, "현재 위치에서 시작합니다.");
+      },
+      () => {
+        if (!ignore) setLocationNotice("현재 위치 권한이 없어 선택한 위치에서 시작합니다.");
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 30000,
+        timeout: 6000,
+      },
+    );
+
+    return () => {
+      ignore = true;
+    };
+  }, [status]);
+
+  return (
+    <div className="nested-sheet-backdrop">
+      <article className="sheet location-picker-sheet">
+        <div className="sheet-handle" />
+        <div className="sheet-header">
+          <h2>{type === "found" ? "발견 위치 지정" : "분실 위치 지정"}</h2>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="닫기">
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div className="building-search">
+          <label className="search-box">
+            <SearchIcon />
+            <input
+              value={buildingQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(event) => {
+                setBuildingQuery(event.target.value);
+                setIsSearchFocused(true);
+              }}
+              placeholder="건물 이름 검색"
+              autoComplete="off"
+            />
+          </label>
+          {isSearchFocused && (
+            <div className="building-suggestion-list">
+              {buildingSuggestions.length > 0 ? (
+                buildingSuggestions.map((building) => (
+                  <button key={building.id} type="button" onClick={() => selectBuilding(building)}>
+                    <strong>{building.name}</strong>
+                  </button>
+                ))
+              ) : (
+                <div className="building-suggestion-empty">검색 결과가 없습니다.</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="location-picker-map kakao-location-picker-map">
+          {status === "error" ? (
+            <StaticCampusMap
+              items={[]}
+              onSelectItem={() => {}}
+            />
+          ) : (
+            <>
+              <div ref={mapContainerRef} className="kakao-map-viewport" aria-label="카카오맵 위치 선택" />
+              {status === "loading" && <div className="map-loading">카카오맵 불러오는 중</div>}
+              <div className={`location-center-pin ${type}`} aria-hidden="true">
+                <span className="pin-symbol">{type === "found" ? "!" : "?"}</span>
+              </div>
+            </>
+          )}
+          <div className="map-controls" aria-label="지도 확대 축소">
+            <button type="button" onClick={() => zoomFromControls(-1)} aria-label="확대">
+              +
+            </button>
+            <button type="button" onClick={() => zoomFromControls(1)} aria-label="축소">
+              -
+            </button>
+          </div>
+          <div className="map-source">{status === "error" ? `카카오맵 로드 실패: ${error}` : "Kakao Maps"}</div>
         </div>
 
         <div className="location-picker-summary">
