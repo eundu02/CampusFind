@@ -165,6 +165,9 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&has_reward=true
 - 로그인 성공 시 JWT 토큰 발급 (7일 유효)
 - JWT Bearer 토큰 기반 인증으로 게시글 등록/수정/삭제, 쪽지 등 보호 API 접근
 
+<img width="1098" height="1110" alt="image" src="https://github.com/user-attachments/assets/e49cc7de-42be-429c-b7a9-a9601e5f185d" />
+
+
 ---
 
 ## 6. 요구사항 분석
