@@ -1,4 +1,4 @@
-<img width="442" height="888" alt="image" src="https://github.com/user-attachments/assets/80d5f060-cc7b-4794-9072-37aa98e8ae1e" /># CampusFind
+# CampusFind
 
 ## 위치 기반 캠퍼스 분실물 찾기 및 보상 시스템
 
@@ -547,12 +547,6 @@ DELETE /api/items/{id}
     <td><img src="https://github.com/user-attachments/assets/0cdcf6da-6c15-4aef-8637-b07780532a44" width="100%" alt="위치 지정"></td>
   </tr>
 </table>
-
-
-
-
-[사진 필요: 게시글 수정 성공 화면]
-[사진 필요: 게시글 삭제 성공 화면]
 
 ---
 
