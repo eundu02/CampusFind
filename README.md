@@ -576,11 +576,22 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&building_id=8&has_reward=true
 
 아무 조건도 입력하지 않으면 전체 게시글을 조회하고, 조건이 입력되면 해당 조건을 만족하는 게시글만 반환한다.
 
-<img width="802" height="484" alt="image" src="https://github.com/user-attachments/assets/5a960132-95a3-4bf4-81b3-c8c590692b96" />
-<img width="703" height="906" alt="image" src="https://github.com/user-attachments/assets/ca2fbd1e-2dd9-47f9-9240-7ce2a0106b15" />
-<img width="710" height="874" alt="image" src="https://github.com/user-attachments/assets/fcc0f326-27bc-4cb2-8c57-153a5c1e1b1f" />
-
-
+<table>
+  <tr align="center">
+    <td colspan="2"><b>게시글 목록 조회 API 필터 파라미터</b></td>
+  </tr>
+  <tr align="center">
+    <td colspan="2"><img src="https://github.com/user-attachments/assets/5a960132-95a3-4bf4-81b3-c8c590692b96" width="100%" alt="게시글 목록 조회 API 필터 파라미터"></td>
+  </tr>
+  <tr align="center">
+    <td width="50%"><b>조건별 필터링 응답 (LOST, OPEN)</b></td>
+    <td width="50%"><b>조건별 필터링 응답 (LOST, OPEN, category_id=2)</b></td>
+  </tr>
+  <tr align="center">
+    <td><img src="https://github.com/user-attachments/assets/ca2fbd1e-2dd9-47f9-9240-7ce2a0106b15" width="100%" alt="조건별 필터링 응답 LOST OPEN"></td>
+    <td><img src="https://github.com/user-attachments/assets/fcc0f326-27bc-4cb2-8c57-153a5c1e1b1f" width="100%" alt="조건별 필터링 응답 LOST OPEN category_id=2"></td>
+  </tr>
+</table>
 ---
 
 ### 10.6 게시글 수정 및 삭제
