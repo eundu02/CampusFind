@@ -809,48 +809,6 @@ Authorization: Bearer {token}
 | 작성자가 아닌 사용자 수정 | author_id 불일치 | 권한 오류 응답 |
 | 작성자가 아닌 사용자 삭제 | author_id 불일치 | 권한 오류 응답 |
 
-[사진 필요: 대표 정상 테스트 Swagger 화면]
-[사진 필요: 대표 예외 테스트 400 응답 화면]
-[사진 필요: Supabase SQL Editor DB 확인 화면]
-
-#### 대표 테스트 캡처
-
-![Swagger API 문서 화면](report-assets/test-screenshots/05-swagger-api-docs.png)
-
-Swagger UI를 통해 게시글, 이미지, 위치, 건물, 쪽지 관련 REST API 목록을 확인하였다. API 문서 화면에서는 각 endpoint의 요청 방식과 파라미터, 응답 형식을 확인할 수 있어 기능별 테스트의 기준으로 활용하였다.
-
-![게시글 목록 API 정상 응답](report-assets/test-screenshots/06-items-api-response.png)
-
-게시글 목록 조회 API를 직접 호출하여 등록된 게시글 목록이 JSON 형태로 정상 반환되는지 확인하였다. 응답에는 게시글 ID, 작성자 ID, 게시글 유형, 제목, 위치 상세 정보, 건물명, 좌표, 이미지 썸네일 URL 등이 포함되어 프론트엔드 목록 화면과 지도 화면에 필요한 데이터가 전달됨을 검증하였다.
-
-![예외 테스트 400 응답](report-assets/test-screenshots/07-nearby-400-response.png)
-
-위치 기반 nearby API 호출 시 필수 query 값인 latitude, longitude, radius를 전달하지 않은 경우 400 응답이 반환되는지 확인하였다. 이를 통해 잘못된 요청에 대해 서버가 정상적으로 예외 응답을 반환함을 검증하였다.
-
-![게시글 목록 프론트 화면](report-assets/test-screenshots/01-list-view.png)
-
-프론트엔드 게시글 목록 화면에서는 API 응답으로 받은 분실물/습득물 게시글이 카드 형태로 표시되는지 확인하였다. 이미지가 있는 게시글은 썸네일이 표시되고, 요청 게시글은 사례금 정보가 함께 노출되는지 검증하였다.
-
-![요청 게시글 상세 이미지 표시](report-assets/test-screenshots/02-request-detail-image.png)
-
-이미지가 첨부된 '찾아주세요' 게시글을 상세 화면에서 열어 이미지, 위치, 사례금, 설명 정보가 함께 표시되는지 확인하였다. 이를 통해 이미지 업로드 결과가 게시글 상세 조회 흐름에서도 활용됨을 검증하였다.
-
-![지도 마커 표시 화면](report-assets/test-screenshots/03-map-markers.png)
-
-지도 화면에서는 등록된 게시글의 좌표를 기반으로 마커가 표시되는지 확인하였다. 습득 게시글은 느낌표, 요청 게시글은 물음표 마커로 구분되며, 지도 위에서 게시글 유형을 시각적으로 구분할 수 있음을 검증하였다.
-
-![게시글 등록 인증 보호 화면](report-assets/test-screenshots/04-login-required-create-post.png)
-
-게시글 등록 기능은 로그인 후 사용할 수 있도록 제한되어 있다. 비로그인 상태에서 게시글 등록 버튼을 누르면 로그인 모달이 표시되는지 확인하여 인증이 필요한 기능에 접근 제어가 적용됨을 검증하였다.
-
-![쪽지 API 통합 테스트](report-assets/test-screenshots/08-message-api-flow.png)
-
-JWT 로그인 후 게시글 상세 화면에서 사용할 쪽지 API 흐름을 검증하였다. 게시글 ID와 발신자 ID를 기반으로 채팅방을 생성하고, 생성된 room_id로 메시지를 전송한 뒤 채팅방 목록과 메시지 목록에서 마지막 메시지 및 메시지 본문이 조회되는지 확인하였다.
-
-![DB 저장값 확인](report-assets/test-screenshots/09-db-verification.png)
-
-Supabase PostgreSQL에 저장된 게시글 위치, 이미지 URL, 쪽지 데이터를 읽기 전용 SQL로 확인하였다. 게시글 좌표는 PostGIS location 값에서 ST_Y, ST_X로 조회되며, item_images에는 Cloudinary 이미지 URL이 저장되고 message_rooms와 messages에는 채팅방 및 메시지 내용이 저장되는 것을 확인하였다.
-
 ---
 
 ### 11.4 통합 테스트 시나리오
@@ -867,13 +825,43 @@ Supabase PostgreSQL에 저장된 게시글 위치, 이미지 URL, 쪽지 데이�
 7. 게시글 상세 조회로 등록 결과 확인
 ```
 
-검증 결과, 이미지가 첨부된 게시글은 목록 화면에서 썸네일로 표시되고 상세 화면에서 원본 이미지 영역으로 표시되었다. API 응답에는 thumbnail_url이 포함되어 프론트엔드에서 이미지 URL을 정상적으로 매핑할 수 있음을 확인하였다.
+검증 결과:
+- Cloudinary 저장 성공
+- 게시글 등록 성공
+- DB 저장 성공
+- 프론트 표시 성공
 
-관련 캡처:
-- report-assets/test-screenshots/01-list-view.png
-- report-assets/test-screenshots/02-request-detail-image.png
-- report-assets/test-screenshots/06-items-api-response.png
-- report-assets/test-screenshots/09-db-verification.png
+<table>
+  <tr align="center">
+    <td><b>이미지 업로드</b></td>
+    <td><b>게시글 등록</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/3a032c6a-262a-45ee-a24e-2e5eff309a9e" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/47c59700-d782-41b5-a42d-d55ac27dbe11" width="100%">
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr align="center">
+    <td><b>게시글 상세 화면</b></td>
+    <td><b>DB 저장 확인</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/a448653e-6a52-44ce-a764-7dc08c8c0c89" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/4fd9cff7-39b2-4f73-bda5-4752b1646f8c" width="100%">
+    </td>
+  </tr>
+</table>  
+
+---
 
 #### 시나리오 2. 위치 기반 게시글 검색
 
@@ -885,11 +873,38 @@ Supabase PostgreSQL에 저장된 게시글 위치, 이미지 URL, 쪽지 데이�
 5. 지도 마커 표시용 좌표 반환
 ```
 
-검증 결과, 지도 화면에서 게시글 유형에 따라 서로 다른 마커가 표시되었고, API 응답의 latitude, longitude, building_name, location_detail 값이 프론트엔드 지도 표시와 게시글 상세 위치 표시의 기준으로 사용됨을 확인하였다. nearby API의 필수 좌표 값이 누락된 경우에는 400 응답이 반환되어 예외 처리도 동작하였다.
+검증 결과:
+- distance_meter 반환
+- 거리순 정렬 확인
+- 지도 마커 표시 확인
 
-관련 캡처:
-- report-assets/test-screenshots/03-map-markers.png
-- report-assets/test-screenshots/07-nearby-400-response.png
+<table>
+  <tr align="center">
+    <td><b>nearby API 요청</b></td>
+    <td><b>nearby API 응답</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/041f5f42-0850-466c-a57a-0972d4558d8c" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/638de5d7-d7e7-4806-8209-d0fd7d2381e3" width="100%">
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr align="center">
+    <td colspan="2"><b>지도 마커 표시 결과</b></td>
+  </tr>
+  <tr align="center">
+    <td colspan="2">
+      <img src="https://github.com/user-attachments/assets/6fe53a56-e65a-40d3-aff4-0b4b307133ee" width="90%">
+    </td>
+  </tr>
+</table>
+
+---
 
 #### 시나리오 3. 게시글 기반 쪽지 흐름
 
@@ -902,15 +917,145 @@ Supabase PostgreSQL에 저장된 게시글 위치, 이미지 URL, 쪽지 데이�
 6. unread_count 감소 확인
 ```
 
-검증 결과, JWT 로그인 후 게시글 ID와 사용자 ID를 이용해 채팅방을 생성할 수 있었고, 생성된 room_id로 메시지를 전송할 수 있었다. 이후 내 채팅방 목록 조회 API에서 해당 게시글 제목, 상대방 닉네임, 마지막 메시지가 반환되었으며, 메시지 목록 조회 API에서도 전송한 메시지 본문과 읽음 상태가 확인되었다.
+검증 결과:
+- room_id 생성 확인
+- 메시지 저장 확인
+- 채팅방 목록 조회 확인
+- unread_count 반환 확인
 
-읽음 처리와 상대방 unread_count 감소는 상대방 계정으로 로그인한 뒤 확인해야 하는 항목이다. 따라서 현재 검증에서는 채팅방 생성, 메시지 전송, 내 채팅방 목록 조회, 메시지 목록 조회까지 확인하였고, 최종 발표 전에는 상대 계정 JWT로 읽음 처리 API를 추가 확인하는 것이 필요하다.
+<table>
+  <tr align="center">
+    <td colspan="2"><b>채팅 기능 통합 테스트</b></td>
+  </tr>
+  <tr align="center">
+    <td colspan="2">
+      <img src="https://github.com/user-attachments/assets/222959e2-dfe3-480f-915b-55ea40971715" width="90%">
+    </td>
+  </tr>
 
-관련 캡처:
-- report-assets/test-screenshots/08-message-api-flow.png
-- report-assets/test-screenshots/09-db-verification.png
+  <tr align="center">
+    <td><b>채팅방 목록 조회 API</b></td>
+    <td><b>안 읽은 메시지 수 조회 API</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/28cebc18-b3a2-4399-8d5f-86deaeff418d" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/3ee5c35b-1b21-4023-b799-683d14a0c675" width="100%">
+    </td>
+  </tr>
+</table>
 
 ---
+
+### 11.5 예외 테스트 결과
+
+예외 테스트는 필수값 누락, 존재하지 않는 데이터 조회, 인증되지 않은 요청, 권한 없는 요청을 기준으로 수행하였다. 각 테스트에서 서버가 적절한 상태 코드와 오류 메시지를 반환하는지 검증하였다.
+
+---
+
+#### 1) 위치 기반 검색 필수값 누락
+
+위치 기반 반경 검색 API는 `latitude`, `longitude`, `radius` 값을 필수로 요구한다.
+
+아래 테스트에서는 필수 파라미터를 전달하지 않고 요청을 수행하였다.
+
+<table>
+  <tr align="center">
+    <td><b>잘못된 요청</b></td>
+    <td><b>400 Bad Request 응답</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/ac060da0-ed05-4235-bd28-444432b1babe" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/43199912-6801-444f-8436-c15575692cdc" width="100%">
+    </td>
+  </tr>
+</table>
+
+검증 결과, 서버는 필수 좌표 정보가 누락된 요청을 정상적으로 차단하였으며 400 응답과 함께 오류 메시지를 반환하였다.
+
+---
+
+#### 2) 인증 없이 게시글 등록 요청
+
+게시글 등록 API는 JWT 인증이 필요한 보호 API이다.
+
+아래 테스트에서는 Authorization 헤더 없이 게시글 등록 요청을 수행하였다.
+
+<table>
+  <tr align="center">
+    <td><b>토큰 없이 게시글 등록 요청</b></td>
+    <td><b>401 Unauthorized 응답</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/2e2559de-28da-42ca-ad74-28d8fecbf0b2" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/482e707b-c2d2-440e-9699-540bd41fe018" width="100%">
+    </td>
+  </tr>
+</table>
+
+검증 결과, 인증되지 않은 사용자의 게시글 등록 요청은 거부되었으며 서버가 401 인증 오류를 반환하는 것을 확인하였다.
+
+---
+
+#### 3) 존재하지 않는 게시글 조회
+
+존재하지 않는 게시글 ID를 사용하여 상세 조회 요청을 수행하였다.
+
+<table>
+  <tr align="center">
+    <td colspan="2"><b>존재하지 않는 게시글 조회</b></td>
+  </tr>
+  <tr align="center">
+    <td colspan="2">
+      <img src="https://github.com/user-attachments/assets/b1b042b9-385b-418e-b3d4-06b4d4195904" width="90%">
+    </td>
+  </tr>
+</table>
+
+검증 결과, 서버는 존재하지 않는 게시글에 대해 404 Not Found 응답을 반환하였으며 잘못된 데이터 접근을 정상적으로 처리하였다.
+
+---
+
+#### 4) 작성자가 아닌 사용자 수정 요청
+
+게시글 수정 API는 게시글 작성자만 사용할 수 있도록 구현하였다.
+
+아래 테스트에서는 다른 사용자 계정으로 수정 요청을 수행하였다.
+
+<table>
+  <tr align="center">
+    <td><b>권한 없는 수정 요청</b></td>
+    <td><b>권한 오류 응답</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/1329c97d-042f-427d-81cc-bf36a54edfda" width="100%">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/6706782a-2565-4b47-8779-86bd368336a0" width="100%">
+    </td>
+  </tr>
+</table>
+
+검증 결과, 작성자가 아닌 사용자의 수정 요청은 거부되었으며 서버가 권한 오류 응답을 반환하는 것을 확인하였다.
+
+---
+
+#### 종합 결과
+
+예외 테스트를 통해 입력값 검증(400), 인증 검증(401), 존재 여부 검증(404), 권한 검증이 모두 정상적으로 동작함을 확인하였다.
+
+
+
+
 
 ## 12. 문제 해결 및 고려 사항
 
