@@ -512,8 +512,19 @@ ST_Distance(location, 기준좌표)
 
 조회 결과에는 기준 좌표로부터의 거리인 distance_meter를 포함하며, 거리순으로 정렬된다.
 
-[사진 필요: nearby API 요청 화면]
-[사진 필요: distance_meter가 포함된 응답 화면]
+<table>
+  <tr align="center">
+    <td colspan="2"><b>위치 기반 반경 검색</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/041f5f42-0850-466c-a57a-0972d4558d8c" width="100%" alt="위치 기반 반경 검색 요청">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/638de5d7-d7e7-4806-8209-d0fd7d2381e3" width="100%" alt="위치 기반 반경 검색 응답">
+    </td>
+  </tr>
+</table>
 
 ---
 
