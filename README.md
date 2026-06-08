@@ -415,7 +415,8 @@ POINT(longitude latitude)
 
 반환된 이미지 정보는 게시글 등록 시 images 배열에 포함하여 item_images 테이블에 저장한다.
 
-<img width="731" height="806" alt="image" src="https://github.com/user-attachments/assets/e6728ca8-67e7-4436-9d4d-591d9aed563e" />
+<img width="712" height="691" alt="image" src="https://github.com/user-attachments/assets/839e1c21-2746-4a37-93d9-0d271cee1fef" />
+
 
 [사진 필요: Cloudinary Media Library 저장 확인 화면]
 
@@ -521,7 +522,9 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&building_id=8&has_reward=true
 아무 조건도 입력하지 않으면 전체 게시글을 조회하고, 조건이 입력되면 해당 조건을 만족하는 게시글만 반환한다.
 
 <img width="802" height="484" alt="image" src="https://github.com/user-attachments/assets/5a960132-95a3-4bf4-81b3-c8c590692b96" />
-[사진 필요: 조건별 필터링 응답 화면]
+<img width="703" height="906" alt="image" src="https://github.com/user-attachments/assets/ca2fbd1e-2dd9-47f9-9240-7ce2a0106b15" />
+<img width="710" height="874" alt="image" src="https://github.com/user-attachments/assets/fcc0f326-27bc-4cb2-8c57-153a5c1e1b1f" />
+
 
 ---
 
