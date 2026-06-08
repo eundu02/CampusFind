@@ -382,10 +382,6 @@ POINT(longitude latitude)
 | POST | /api/rooms/{id}/messages | 메시지 전송 |
 | PUT | /api/rooms/{id}/read | 메시지 읽음 처리 |
 
-<img width="878" height="490" alt="image" src="https://github.com/user-attachments/assets/50b398d8-1a03-4404-bd0d-fe07d22c99ba" />
-
----
-
 ### 9.5 Auth API
 
 | Method | URL | 설명 |
@@ -394,6 +390,20 @@ POINT(longitude latitude)
 | POST | /api/auth/verify-code | 인증코드 확인 |
 | POST | /api/auth/signup | 회원가입 |
 | POST | /api/auth/login | 로그인 |
+
+<table>
+  <tr align="center">
+    <td colspan="2"><b>Swagger API 전체 목록</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/abfba7af-6864-4a36-b16b-c00e7f958acd" width="100%" alt="Swagger API 전체 목록 1">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/c0425a76-786a-4f66-b2a6-0f605bbb1dbb" width="100%" alt="Swagger API 전체 목록 2">
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -415,10 +425,20 @@ POINT(longitude latitude)
 
 반환된 이미지 정보는 게시글 등록 시 images 배열에 포함하여 item_images 테이블에 저장한다.
 
-<img width="712" height="691" alt="image" src="https://github.com/user-attachments/assets/839e1c21-2746-4a37-93d9-0d271cee1fef" />
-
-
-[사진 필요: Cloudinary Media Library 저장 확인 화면]
+<table>
+  <tr align="center">
+    <td><b>Swagger 이미지 업로드 성공 화면</b></td>
+    <td><b>Cloudinary Media Library 저장 확인 화면</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/3a032c6a-262a-45ee-a24e-2e5eff309a9e" width="100%" alt="Swagger 이미지 업로드 성공 화면">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/518583d2-3cd4-4ae4-b2c4-5f50a7aa7228" width="100%" alt="Cloudinary Media Library 저장 확인 화면">
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -443,9 +463,33 @@ ST_GeogFromText('POINT(129.193553 35.861837)')
 
 이를 통해 DB에는 PostGIS GEOGRAPHY(Point, 4326) 형식으로 위치가 저장된다.
 
-[사진 필요: 게시글 등록 요청 화면]
-[사진 필요: 게시글 등록 성공 응답 화면]
-<img width="1438" height="374" alt="image" src="https://github.com/user-attachments/assets/63f77d8e-7a55-4c03-ad13-1d7834e570f9" />
+<table>
+  <tr align="center">
+    <td colspan="2">
+      <h3>게시글 등록 및 저장 확인</h3>
+    </td>
+  </tr>
+  <tr align="center">
+    <td><b>게시글 등록 요청 화면</b></td>
+    <td><b>게시글 등록 성공 응답 화면</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/652259c4-d089-49b4-a58b-8e1257be7d5e" width="100%" alt="게시글 등록 요청 화면">
+    </td>
+    <td width="50%">
+      <img src="https://github.com/user-attachments/assets/47c59700-d782-41b5-a42d-d55ac27dbe11" width="100%" alt="게시글 등록 성공 응답 화면">
+    </td>
+  </tr>
+  <tr align="center">
+    <td colspan="2"><b>Supabase items 저장 확인 화면</b></td>
+  </tr>
+  <tr align="center">
+    <td colspan="2">
+      <img src="https://github.com/user-attachments/assets/1230651e-96cf-49b2-aae2-e23be0bf7816" width="90%" alt="Supabase items 저장 확인 화면">
+    </td>
+  </tr>
+</table>
 
 ---
 
