@@ -689,6 +689,44 @@ Authorization: Bearer {token}
 [사진 필요: 대표 예외 테스트 400 응답 화면]
 [사진 필요: Supabase SQL Editor DB 확인 화면]
 
+#### 대표 테스트 캡처
+
+![Swagger API 문서 화면](report-assets/test-screenshots/05-swagger-api-docs.png)
+
+Swagger UI를 통해 게시글, 이미지, 위치, 건물, 쪽지 관련 REST API 목록을 확인하였다. API 문서 화면에서는 각 endpoint의 요청 방식과 파라미터, 응답 형식을 확인할 수 있어 기능별 테스트의 기준으로 활용하였다.
+
+![게시글 목록 API 정상 응답](report-assets/test-screenshots/06-items-api-response.png)
+
+게시글 목록 조회 API를 직접 호출하여 등록된 게시글 목록이 JSON 형태로 정상 반환되는지 확인하였다. 응답에는 게시글 ID, 작성자 ID, 게시글 유형, 제목, 위치 상세 정보, 건물명, 좌표, 이미지 썸네일 URL 등이 포함되어 프론트엔드 목록 화면과 지도 화면에 필요한 데이터가 전달됨을 검증하였다.
+
+![예외 테스트 400 응답](report-assets/test-screenshots/07-nearby-400-response.png)
+
+위치 기반 nearby API 호출 시 필수 query 값인 latitude, longitude, radius를 전달하지 않은 경우 400 응답이 반환되는지 확인하였다. 이를 통해 잘못된 요청에 대해 서버가 정상적으로 예외 응답을 반환함을 검증하였다.
+
+![게시글 목록 프론트 화면](report-assets/test-screenshots/01-list-view.png)
+
+프론트엔드 게시글 목록 화면에서는 API 응답으로 받은 분실물/습득물 게시글이 카드 형태로 표시되는지 확인하였다. 이미지가 있는 게시글은 썸네일이 표시되고, 요청 게시글은 사례금 정보가 함께 노출되는지 검증하였다.
+
+![요청 게시글 상세 이미지 표시](report-assets/test-screenshots/02-request-detail-image.png)
+
+이미지가 첨부된 '찾아주세요' 게시글을 상세 화면에서 열어 이미지, 위치, 사례금, 설명 정보가 함께 표시되는지 확인하였다. 이를 통해 이미지 업로드 결과가 게시글 상세 조회 흐름에서도 활용됨을 검증하였다.
+
+![지도 마커 표시 화면](report-assets/test-screenshots/03-map-markers.png)
+
+지도 화면에서는 등록된 게시글의 좌표를 기반으로 마커가 표시되는지 확인하였다. 습득 게시글은 느낌표, 요청 게시글은 물음표 마커로 구분되며, 지도 위에서 게시글 유형을 시각적으로 구분할 수 있음을 검증하였다.
+
+![게시글 등록 인증 보호 화면](report-assets/test-screenshots/04-login-required-create-post.png)
+
+게시글 등록 기능은 로그인 후 사용할 수 있도록 제한되어 있다. 비로그인 상태에서 게시글 등록 버튼을 누르면 로그인 모달이 표시되는지 확인하여 인증이 필요한 기능에 접근 제어가 적용됨을 검증하였다.
+
+![쪽지 API 통합 테스트](report-assets/test-screenshots/08-message-api-flow.png)
+
+JWT 로그인 후 게시글 상세 화면에서 사용할 쪽지 API 흐름을 검증하였다. 게시글 ID와 발신자 ID를 기반으로 채팅방을 생성하고, 생성된 room_id로 메시지를 전송한 뒤 채팅방 목록과 메시지 목록에서 마지막 메시지 및 메시지 본문이 조회되는지 확인하였다.
+
+![DB 저장값 확인](report-assets/test-screenshots/09-db-verification.png)
+
+Supabase PostgreSQL에 저장된 게시글 위치, 이미지 URL, 쪽지 데이터를 읽기 전용 SQL로 확인하였다. 게시글 좌표는 PostGIS location 값에서 ST_Y, ST_X로 조회되며, item_images에는 Cloudinary 이미지 URL이 저장되고 message_rooms와 messages에는 채팅방 및 메시지 내용이 저장되는 것을 확인하였다.
+
 ---
 
 ### 11.4 통합 테스트 시나리오
@@ -705,6 +743,14 @@ Authorization: Bearer {token}
 7. 게시글 상세 조회로 등록 결과 확인
 ```
 
+검증 결과, 이미지가 첨부된 게시글은 목록 화면에서 썸네일로 표시되고 상세 화면에서 원본 이미지 영역으로 표시되었다. API 응답에는 thumbnail_url이 포함되어 프론트엔드에서 이미지 URL을 정상적으로 매핑할 수 있음을 확인하였다.
+
+관련 캡처:
+- report-assets/test-screenshots/01-list-view.png
+- report-assets/test-screenshots/02-request-detail-image.png
+- report-assets/test-screenshots/06-items-api-response.png
+- report-assets/test-screenshots/09-db-verification.png
+
 #### 시나리오 2. 위치 기반 게시글 검색
 
 ```txt
@@ -714,6 +760,12 @@ Authorization: Bearer {token}
 4. distance_meter 기준 거리순 정렬
 5. 지도 마커 표시용 좌표 반환
 ```
+
+검증 결과, 지도 화면에서 게시글 유형에 따라 서로 다른 마커가 표시되었고, API 응답의 latitude, longitude, building_name, location_detail 값이 프론트엔드 지도 표시와 게시글 상세 위치 표시의 기준으로 사용됨을 확인하였다. nearby API의 필수 좌표 값이 누락된 경우에는 400 응답이 반환되어 예외 처리도 동작하였다.
+
+관련 캡처:
+- report-assets/test-screenshots/03-map-markers.png
+- report-assets/test-screenshots/07-nearby-400-response.png
 
 #### 시나리오 3. 게시글 기반 쪽지 흐름
 
@@ -725,6 +777,14 @@ Authorization: Bearer {token}
 5. 채팅방 입장 시 읽음 처리
 6. unread_count 감소 확인
 ```
+
+검증 결과, JWT 로그인 후 게시글 ID와 사용자 ID를 이용해 채팅방을 생성할 수 있었고, 생성된 room_id로 메시지를 전송할 수 있었다. 이후 내 채팅방 목록 조회 API에서 해당 게시글 제목, 상대방 닉네임, 마지막 메시지가 반환되었으며, 메시지 목록 조회 API에서도 전송한 메시지 본문과 읽음 상태가 확인되었다.
+
+읽음 처리와 상대방 unread_count 감소는 상대방 계정으로 로그인한 뒤 확인해야 하는 항목이다. 따라서 현재 검증에서는 채팅방 생성, 메시지 전송, 내 채팅방 목록 조회, 메시지 목록 조회까지 확인하였고, 최종 발표 전에는 상대 계정 JWT로 읽음 처리 API를 추가 확인하는 것이 필요하다.
+
+관련 캡처:
+- report-assets/test-screenshots/08-message-api-flow.png
+- report-assets/test-screenshots/09-db-verification.png
 
 ---
 
