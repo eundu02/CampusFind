@@ -623,11 +623,21 @@ DELETE /api/items/{id}
 
 또한 Polling 기반으로 안 읽은 메시지 수를 조회할 수 있도록 구현하였다.
 
-[사진 필요: 채팅방 생성 API 화면]
-[사진 필요: 메시지 전송 API 화면]
-[사진 필요: 메시지 목록 조회 API 화면]
-[사진 필요: 안 읽은 메시지 수 조회 API 화면]
-[사진 필요: 메시지 읽음 처리 API 화면]
+[채팅방 생성 API 화면]
+<img width="1413" height="1518" alt="image" src="https://github.com/user-attachments/assets/843e9a11-3d16-42a0-816f-542247ef2e14" />
+
+[메시지 전송 API 화면]
+<img width="1422" height="1624" alt="image" src="https://github.com/user-attachments/assets/6db6c3f5-c2cb-42bb-989f-8cc4142075db" />
+
+[메시지 목록 조회 API 화면]
+<img width="1420" height="1369" alt="image" src="https://github.com/user-attachments/assets/e5580dc5-9d84-4f7a-a7f2-205bca93a7fd" />
+
+[안 읽은 메시지 수 조회 API 화면]
+<img width="709" height="536" alt="image" src="https://github.com/user-attachments/assets/8a200947-1158-41d5-9dc5-275f7d9fcf90" />
+
+[메시지 읽음 처리 API 화면]
+<img width="711" height="773" alt="image" src="https://github.com/user-attachments/assets/7050bb16-b6a9-406c-8857-1837c3e8adea" />
+
 
 ---
 
