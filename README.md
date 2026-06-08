@@ -51,6 +51,8 @@ CampusFind는 이러한 문제를 해결하기 위해 다음과 같은 목표를
 
 ### Frontend 역할
 
+- 로그인/회원가입 화면 구현
+- 조건별 필터 UI 구현
 - React / Vite 기반 화면 구현
 - Kakao Maps API 연동
 - 지도 클릭을 통한 좌표 선택 기능 구현
