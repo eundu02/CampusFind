@@ -544,10 +544,10 @@ DELETE /api/items/{id}
     <td><b>게시글 삭제</b></td>
   </tr>
   <tr align="center">
-    <td><img src="https://github.com/user-attachments/assets/7e9b0054-3aa7-4455-9ad6-d33d09c9fe4d" width="100%" alt="지도 메인 화면"></td>
-    <td><img src="https://github.com/user-attachments/assets/4e97ca87-5631-443e-bc4a-9dee6eb8d72e" width="100%" alt="필터링 화면"></td>
-    <td><img src="https://github.com/user-attachments/assets/c3738d90-fe14-499a-a16b-4603c4b600cc" width="100%" alt="게시글 등록"></td>
-    <td><img src="https://github.com/user-attachments/assets/0cdcf6da-6c15-4aef-8637-b07780532a44" width="100%" alt="위치 지정"></td>
+    <td><img src="https://github.com/user-attachments/assets/7e9b0054-3aa7-4455-9ad6-d33d09c9fe4d" width="100%" alt></td>
+    <td><img src="https://github.com/user-attachments/assets/4e97ca87-5631-443e-bc4a-9dee6eb8d72e" width="100%" alt></td>
+    <td><img src="https://github.com/user-attachments/assets/c3738d90-fe14-499a-a16b-4603c4b600cc" width="100%" alt></td>
+    <td><img src="https://github.com/user-attachments/assets/0cdcf6da-6c15-4aef-8637-b07780532a44" width="100%" alt></td>
   </tr>
 </table>
 
@@ -648,6 +648,17 @@ Authorization: Bearer {token}
 ```
 
 인메모리 방식이므로 서버 재시작 시 인증 상태가 초기화된다. 현재 프로젝트 규모에서는 별도 Redis 등 외부 저장소 없이 간단하게 처리하였다.
+
+<table>
+  <tr align="center">
+    <td><b>회원가입 시 학교 이메일 인증</b></td>
+    <td><b>이메일 인증 번호 전송</b></td>
+  </tr>
+  <tr align="center">
+    <td width="50%"><img src="https://github.com/user-attachments/assets/0511d806-3f65-48e0-97a9-10a5a047f7fd" width="100%" alt></td>
+    <td width="50%"><img src="https://github.com/user-attachments/assets/7d6bba05-a87b-4214-8c00-83210d7c75e1" width="100%" alt></td>
+  </tr>
+</table>
 
 ---
 
