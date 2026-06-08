@@ -541,10 +541,16 @@ GET /api/buildings/search?keyword=원효관
 GET /api/buildings/8/location
 ```
 
-<img width="791" height="644" alt="image" src="https://github.com/user-attachments/assets/12b6bfd5-2349-4a48-8abb-ff6ef2bba1f6" />
-
-<img width="807" height="631" alt="image" src="https://github.com/user-attachments/assets/a96c04ec-477f-4a6b-9f7c-626f2551338b" />
-
+<table>
+  <tr align="center">
+    <td width="50%"><b>건물명 검색 API 응답</b></td>
+    <td width="50%"><b>건물 좌표 조회 API 응답</b></td>
+  </tr>
+  <tr align="center">
+    <td><img src="https://github.com/user-attachments/assets/12b6bfd5-2349-4a48-8abb-ff6ef2bba1f6" width="100%" alt="건물명 검색 API 응답"></td>
+    <td><img src="https://github.com/user-attachments/assets/a96c04ec-477f-4a6b-9f7c-626f2551338b" width="100%" alt="건물 좌표 조회 API 응답"></td>
+  </tr>
+</table>
 ---
 
 ### 10.5 게시글 조건별 필터링
