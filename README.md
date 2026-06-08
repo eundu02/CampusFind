@@ -215,6 +215,8 @@ React Frontend -> Express Backend -> Cloudinary
 지도 기능:
 React Frontend -> Kakao Maps API
 ```
+<img width="757" height="416" alt="스크린샷 2026-06-08 191926" src="https://github.com/user-attachments/assets/edb90eb9-258f-4c63-b531-21a25e0acce1" />
+
 
 [사진 필요: 시스템 아키텍처 다이어그램]
 
