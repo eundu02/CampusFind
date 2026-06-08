@@ -1,4 +1,4 @@
-# CampusFind
+<img width="442" height="888" alt="image" src="https://github.com/user-attachments/assets/80d5f060-cc7b-4794-9072-37aa98e8ae1e" /># CampusFind
 
 ## 위치 기반 캠퍼스 분실물 찾기 및 보상 시스템
 
@@ -217,8 +217,6 @@ React Frontend -> Kakao Maps API
 ```
 <img width="757" height="416" alt="스크린샷 2026-06-08 191926" src="https://github.com/user-attachments/assets/edb90eb9-258f-4c63-b531-21a25e0acce1" />
 
-
-[사진 필요: 시스템 아키텍처 다이어그램]
 
 ---
 
@@ -534,6 +532,24 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&building_id=8&has_reward=true
 PATCH /api/items/{id}
 DELETE /api/items/{id}
 ```
+
+<table>
+  <tr align="center">
+    <td><b>게시글 수정 전</b></td>
+    <td><b>게시글 수정 후</b></td>
+    <td><b>게시글 등록</b></td>
+    <td><b>게시글 삭제</b></td>
+  </tr>
+  <tr align="center">
+    <td><img src="https://github.com/user-attachments/assets/7e9b0054-3aa7-4455-9ad6-d33d09c9fe4d" width="100%" alt="지도 메인 화면"></td>
+    <td><img src="https://github.com/user-attachments/assets/4e97ca87-5631-443e-bc4a-9dee6eb8d72e" width="100%" alt="필터링 화면"></td>
+    <td><img src="https://github.com/user-attachments/assets/c3738d90-fe14-499a-a16b-4603c4b600cc" width="100%" alt="게시글 등록"></td>
+    <td><img src="https://github.com/user-attachments/assets/0cdcf6da-6c15-4aef-8637-b07780532a44" width="100%" alt="위치 지정"></td>
+  </tr>
+</table>
+
+
+
 
 [사진 필요: 게시글 수정 성공 화면]
 [사진 필요: 게시글 삭제 성공 화면]
