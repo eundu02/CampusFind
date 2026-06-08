@@ -340,7 +340,7 @@ POINT(longitude latitude)
 | is_read | 읽음 여부 |
 | created_at | 생성일 |
 
-[사진 필요: ERD 화면]
+<img width="551" height="367" alt="image" src="https://github.com/user-attachments/assets/831bfbe1-226f-459e-b9bf-fe49da51eb4f" />
 
 ---
 
@@ -382,7 +382,7 @@ POINT(longitude latitude)
 | POST | /api/rooms/{id}/messages | 메시지 전송 |
 | PUT | /api/rooms/{id}/read | 메시지 읽음 처리 |
 
-[사진 필요: Swagger API 전체 목록 화면]
+<img width="878" height="490" alt="image" src="https://github.com/user-attachments/assets/50b398d8-1a03-4404-bd0d-fe07d22c99ba" />
 
 ---
 
@@ -415,7 +415,8 @@ POINT(longitude latitude)
 
 반환된 이미지 정보는 게시글 등록 시 images 배열에 포함하여 item_images 테이블에 저장한다.
 
-[사진 필요: Swagger 이미지 업로드 성공 화면]
+<img width="731" height="806" alt="image" src="https://github.com/user-attachments/assets/e6728ca8-67e7-4436-9d4d-591d9aed563e" />
+
 [사진 필요: Cloudinary Media Library 저장 확인 화면]
 
 ---
@@ -443,7 +444,7 @@ ST_GeogFromText('POINT(129.193553 35.861837)')
 
 [사진 필요: 게시글 등록 요청 화면]
 [사진 필요: 게시글 등록 성공 응답 화면]
-[사진 필요: Supabase items 저장 확인 화면]
+<img width="1438" height="374" alt="image" src="https://github.com/user-attachments/assets/63f77d8e-7a55-4c03-ad13-1d7834e570f9" />
 
 ---
 
@@ -484,8 +485,9 @@ GET /api/buildings/search?keyword=원효관
 GET /api/buildings/8/location
 ```
 
-[사진 필요: 건물명 검색 API 응답 화면]
-[사진 필요: 건물 좌표 조회 API 응답 화면]
+<img width="791" height="644" alt="image" src="https://github.com/user-attachments/assets/12b6bfd5-2349-4a48-8abb-ff6ef2bba1f6" />
+
+<img width="807" height="631" alt="image" src="https://github.com/user-attachments/assets/a96c04ec-477f-4a6b-9f7c-626f2551338b" />
 
 ---
 
@@ -518,7 +520,7 @@ GET /api/items?type=LOST&status=OPEN&category_id=2&building_id=8&has_reward=true
 
 아무 조건도 입력하지 않으면 전체 게시글을 조회하고, 조건이 입력되면 해당 조건을 만족하는 게시글만 반환한다.
 
-[사진 필요: 게시글 목록 조회 API 필터 파라미터 화면]
+<img width="802" height="484" alt="image" src="https://github.com/user-attachments/assets/5a960132-95a3-4bf4-81b3-c8c590692b96" />
 [사진 필요: 조건별 필터링 응답 화면]
 
 ---
